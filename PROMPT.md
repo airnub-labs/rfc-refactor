@@ -1,4 +1,4 @@
-# CODING_AGENT_PROMPT.md – Implement the E2B RFC/OWASP Auditor
+# PROMPT.md – Implement the E2B RFC/OWASP Auditor
 
 You are a coding agent working on a hackathon project called the **E2B RFC/OWASP Auditor**.
 
