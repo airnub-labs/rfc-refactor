@@ -8,9 +8,10 @@
  * - Gateway uses stdio transport internally, exposed via HTTP with bearer auth
  * - Use getMcpUrl()/getMcpToken() to get gateway credentials
  *
- * For Perplexity:
- * - Can use E2B's built-in support: `mcp: { perplexity: { apiKey } }`
- * - Or custom server from GitHub: `mcp: { 'github/repo': { runCmd, installCmd } }`
+ * Custom MCP Servers (from GitHub):
+ * - Configure with: 'github/owner/repo': { installCmd, runCmd }
+ * - E2B clones the repo, runs installCmd, then starts with runCmd
+ * - Server must use stdio transport
  *
  * For Memgraph:
  * - Runs as persistent Docker service (not inside sandbox)
@@ -27,19 +28,13 @@ export interface SandboxHandle {
 }
 
 // MCP configuration types following E2B patterns
-interface BuiltInMCPConfig {
-  perplexity?: {
-    apiKey: string;
-  };
-}
-
 interface CustomMCPServerConfig {
   runCmd: string;
   installCmd?: string;
 }
 
-type MCPConfig = BuiltInMCPConfig & {
-  [key: string]: CustomMCPServerConfig | { apiKey: string } | undefined;
+type MCPConfig = {
+  [key: string]: CustomMCPServerConfig | Record<string, string>;
 };
 
 /**
@@ -50,25 +45,16 @@ type MCPConfig = BuiltInMCPConfig & {
  */
 export async function createSandbox(options?: {
   timeoutMs?: number;
-  useCustomPerplexity?: boolean;
 }): Promise<SandboxHandle> {
   const mcpConfig: MCPConfig = {};
 
-  // Configure Perplexity MCP
+  // Configure Perplexity MCP using custom server pattern from GitHub
+  // Following E2B docs: https://e2b.dev/docs/mcp/custom-servers
   if (process.env.PERPLEXITY_API_KEY) {
-    if (options?.useCustomPerplexity) {
-      // Use official Perplexity MCP server from modelcontextprotocol repo
-      // Following E2B custom server pattern: https://e2b.dev/docs/mcp/custom-servers
-      mcpConfig['ppl-ai/modelcontextprotocol'] = {
-        installCmd: 'npm install',
-        runCmd: 'npx -y @anthropic-ai/mcp-server-perplexity',
-      };
-    } else {
-      // Use E2B's built-in Perplexity support
-      mcpConfig.perplexity = {
-        apiKey: process.env.PERPLEXITY_API_KEY,
-      };
-    }
+    mcpConfig['ppl-ai/modelcontextprotocol'] = {
+      installCmd: 'npm install',
+      runCmd: 'npx -y ts-node src/index.ts',
+    };
   }
 
   // Create sandbox with MCP configuration
