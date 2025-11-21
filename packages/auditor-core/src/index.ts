@@ -1,9 +1,48 @@
 /**
  * Main entry point for @e2b-auditor/core
+ *
+ * This package provides the core functionality for auditing HTTP APIs
+ * against RFC standards and OWASP Top 10 security guidelines.
  */
 
 // Types
 export * from './types.js';
+
+// Constants
+export {
+  AUDIT_TRIGGER,
+  DEFAULT_GROQ_MODEL,
+  DEFAULT_LLM_TEMPERATURE,
+  DEFAULT_MAX_TOKENS,
+  DEFAULT_SANDBOX_TIMEOUT_MS,
+  MAX_BODY_PREVIEW_LENGTH,
+  SAMPLE_API_BASE_URL,
+  SAMPLE_API_PORT,
+  STATUS_EMOJI,
+  LOG_PREFIX,
+} from './constants.js';
+
+// Errors
+export {
+  AuditorError,
+  SandboxError,
+  McpError,
+  LlmError,
+  ProbeError,
+  SanitizationError,
+  GraphError,
+  isAuditorError,
+  getErrorMessage,
+} from './errors.js';
+
+// OWASP Configuration
+export {
+  OWASP_CATEGORIES,
+  findOwaspCategoryById,
+  findOwaspCategoriesByKeyword,
+  matchOwaspCategories,
+  type OwaspCategory,
+} from './config/owaspCategories.js';
 
 // Aspects
 export { applyAspects, type Aspect } from './aspects/applyAspects.js';

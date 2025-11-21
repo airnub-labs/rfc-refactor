@@ -21,6 +21,8 @@
  */
 
 import { Sandbox } from '@e2b/code-interpreter';
+import { DEFAULT_SANDBOX_TIMEOUT_MS, LOG_PREFIX } from './constants.js';
+import { SandboxError } from './errors.js';
 
 export interface SandboxHandle {
   sandbox: Sandbox;
@@ -45,6 +47,41 @@ interface CustomMCPServerConfig {
 type MCPConfig = {
   [key: string]: DockerHubMCPConfig | CustomMCPServerConfig;
 };
+
+/**
+ * Get MCP gateway credentials from sandbox
+ *
+ * Tries standard API first, then beta API, then falls back to external gateway.
+ */
+async function getMcpCredentials(sandbox: Sandbox): Promise<{ mcpUrl: string; mcpToken: string }> {
+  const fallbackUrl = process.env.MCP_GATEWAY_URL || 'http://localhost:8080';
+  // Cast to access potential MCP methods (may be in beta or standard API)
+  const sbx = sandbox as unknown as Record<string, unknown>;
+
+  try {
+    // Try standard API first
+    if (typeof sbx.getMcpUrl === 'function' && typeof sbx.getMcpToken === 'function') {
+      const url = (sbx.getMcpUrl as () => string)();
+      const token = await (sbx.getMcpToken as () => Promise<string>)();
+      return { mcpUrl: url, mcpToken: token };
+    }
+
+    // Fall back to beta API
+    if (typeof sbx.betaGetMcpUrl === 'function' && typeof sbx.betaGetMcpToken === 'function') {
+      const url = (sbx.betaGetMcpUrl as () => string)();
+      const token = await (sbx.betaGetMcpToken as () => Promise<string>)();
+      return { mcpUrl: url, mcpToken: token };
+    }
+
+    // Fallback to external MCP gateway for local development
+    console.log(`${LOG_PREFIX.e2b} MCP gateway methods not available, using external gateway`);
+    return { mcpUrl: fallbackUrl, mcpToken: '' };
+  } catch (error) {
+    // Fallback to external MCP gateway
+    console.log(`${LOG_PREFIX.e2b} Failed to get MCP gateway credentials, using external gateway:`, error);
+    return { mcpUrl: fallbackUrl, mcpToken: '' };
+  }
+}
 
 /**
  * Create a new E2B sandbox with MCP gateway configured
@@ -78,7 +115,7 @@ export async function createSandbox(options?: {
 
   // Create sandbox with MCP configuration
   const sandbox = await Sandbox.create({
-    timeoutMs: options?.timeoutMs || 300000, // 5 minutes default
+    timeoutMs: options?.timeoutMs || DEFAULT_SANDBOX_TIMEOUT_MS,
     // Pass environment variables to sandbox
     envs: {
       PERPLEXITY_API_KEY: process.env.PERPLEXITY_API_KEY || '',
@@ -96,34 +133,11 @@ export async function createSandbox(options?: {
 
   // Get MCP gateway credentials
   // API may be getMcpUrl/getMcpToken or betaGetMcpUrl/betaGetMcpToken
-  let mcpUrl = '';
-  let mcpToken = '';
+  const { mcpUrl, mcpToken } = await getMcpCredentials(sandbox);
 
-  try {
-    // Try standard API first
-    if (typeof (sandbox as any).getMcpUrl === 'function') {
-      mcpUrl = (sandbox as any).getMcpUrl();
-      mcpToken = await (sandbox as any).getMcpToken();
-    } else if (typeof (sandbox as any).betaGetMcpUrl === 'function') {
-      // Fall back to beta API
-      mcpUrl = (sandbox as any).betaGetMcpUrl();
-      mcpToken = await (sandbox as any).betaGetMcpToken();
-    } else {
-      // Fallback to external MCP gateway for local development
-      console.log('[E2B] MCP gateway methods not available, using external gateway');
-      mcpUrl = process.env.MCP_GATEWAY_URL || 'http://localhost:8080';
-      mcpToken = '';
-    }
-  } catch (error) {
-    // Fallback to external MCP gateway
-    console.log('[E2B] Failed to get MCP gateway credentials, using external gateway:', error);
-    mcpUrl = process.env.MCP_GATEWAY_URL || 'http://localhost:8080';
-    mcpToken = '';
-  }
-
-  console.log(`[E2B] Sandbox created: ${sandbox.sandboxId}`);
-  console.log(`[E2B] MCP Gateway URL: ${mcpUrl}`);
-  console.log(`[E2B] MCP Token available: ${mcpToken ? 'yes' : 'no'}`);
+  console.log(`${LOG_PREFIX.e2b} Sandbox created: ${sandbox.sandboxId}`);
+  console.log(`${LOG_PREFIX.e2b} MCP Gateway URL: ${mcpUrl}`);
+  console.log(`${LOG_PREFIX.e2b} MCP Token available: ${mcpToken ? 'yes' : 'no'}`);
 
   return {
     sandbox,
