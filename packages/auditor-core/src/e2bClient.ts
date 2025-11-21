@@ -1,6 +1,20 @@
 /**
  * E2B sandbox client for creating and managing sandboxes
  * Uses E2B's built-in MCP gateway for tool access
+ *
+ * E2B MCP Architecture:
+ * - E2B provides a batteries-included MCP gateway inside sandboxes
+ * - Tools are configured during sandbox creation via the `mcp` option
+ * - Gateway uses stdio transport internally, exposed via HTTP with bearer auth
+ * - Use getMcpUrl()/getMcpToken() to get gateway credentials
+ *
+ * For Perplexity:
+ * - Can use E2B's built-in support: `mcp: { perplexity: { apiKey } }`
+ * - Or custom server from GitHub: `mcp: { 'github/repo': { runCmd, installCmd } }`
+ *
+ * For Memgraph:
+ * - Runs as persistent Docker service (not inside sandbox)
+ * - Accessed via external MCP gateway for knowledge graph persistence
  */
 
 import { Sandbox } from '@e2b/code-interpreter';
@@ -12,38 +26,64 @@ export interface SandboxHandle {
   mcpToken: string;
 }
 
-// MCP configuration for services
-interface MCPConfig {
+// MCP configuration types following E2B patterns
+interface BuiltInMCPConfig {
   perplexity?: {
     apiKey: string;
   };
-  // Memgraph is accessed via external Docker service, not E2B gateway
 }
+
+interface CustomMCPServerConfig {
+  runCmd: string;
+  installCmd?: string;
+}
+
+type MCPConfig = BuiltInMCPConfig & {
+  [key: string]: CustomMCPServerConfig | { apiKey: string } | undefined;
+};
 
 /**
  * Create a new E2B sandbox with MCP gateway configured
+ *
+ * @param options - Optional configuration overrides
+ * @returns SandboxHandle with gateway credentials
  */
-export async function createSandbox(): Promise<SandboxHandle> {
+export async function createSandbox(options?: {
+  timeoutMs?: number;
+  useCustomPerplexity?: boolean;
+}): Promise<SandboxHandle> {
   const mcpConfig: MCPConfig = {};
 
-  // Configure Perplexity if API key is available
+  // Configure Perplexity MCP
   if (process.env.PERPLEXITY_API_KEY) {
-    mcpConfig.perplexity = {
-      apiKey: process.env.PERPLEXITY_API_KEY,
-    };
+    if (options?.useCustomPerplexity) {
+      // Use official Perplexity MCP server from modelcontextprotocol repo
+      // Following E2B custom server pattern: https://e2b.dev/docs/mcp/custom-servers
+      mcpConfig['ppl-ai/modelcontextprotocol'] = {
+        installCmd: 'npm install',
+        runCmd: 'npx -y @anthropic-ai/mcp-server-perplexity',
+      };
+    } else {
+      // Use E2B's built-in Perplexity support
+      mcpConfig.perplexity = {
+        apiKey: process.env.PERPLEXITY_API_KEY,
+      };
+    }
   }
 
   // Create sandbox with MCP configuration
-  // Using the standard API - beta API uses betaCreate/betaGetMcpUrl
   const sandbox = await Sandbox.create({
-    timeoutMs: 300000, // 5 minutes
+    timeoutMs: options?.timeoutMs || 300000, // 5 minutes default
+    // Pass environment variables to sandbox
+    envs: {
+      PERPLEXITY_API_KEY: process.env.PERPLEXITY_API_KEY || '',
+    },
     // MCP gateway configuration
     ...(Object.keys(mcpConfig).length > 0 && { mcp: mcpConfig }),
   });
 
   // Get MCP gateway credentials
-  // Note: These methods may be getMcpUrl/getMcpToken or betaGetMcpUrl/betaGetMcpToken
-  // depending on SDK version
+  // API may be getMcpUrl/getMcpToken or betaGetMcpUrl/betaGetMcpToken
   let mcpUrl = '';
   let mcpToken = '';
 
@@ -57,15 +97,21 @@ export async function createSandbox(): Promise<SandboxHandle> {
       mcpUrl = (sandbox as any).betaGetMcpUrl();
       mcpToken = await (sandbox as any).betaGetMcpToken();
     } else {
-      // Fallback to external MCP gateway
+      // Fallback to external MCP gateway for local development
+      console.log('[E2B] MCP gateway methods not available, using external gateway');
       mcpUrl = process.env.MCP_GATEWAY_URL || 'http://localhost:8080';
       mcpToken = '';
     }
-  } catch {
+  } catch (error) {
     // Fallback to external MCP gateway
+    console.log('[E2B] Failed to get MCP gateway credentials, using external gateway:', error);
     mcpUrl = process.env.MCP_GATEWAY_URL || 'http://localhost:8080';
     mcpToken = '';
   }
+
+  console.log(`[E2B] Sandbox created: ${sandbox.sandboxId}`);
+  console.log(`[E2B] MCP Gateway URL: ${mcpUrl}`);
+  console.log(`[E2B] MCP Token available: ${mcpToken ? 'yes' : 'no'}`);
 
   return {
     sandbox,
@@ -81,7 +127,7 @@ export async function createSandbox(): Promise<SandboxHandle> {
 export async function runSampleApiInSandbox(handle: SandboxHandle): Promise<void> {
   const { sandbox } = handle;
 
-  // Install dependencies and start the sample API
+  // Sample API server code
   const sampleApiCode = `
 const http = require('http');
 
