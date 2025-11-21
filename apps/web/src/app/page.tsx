@@ -1,12 +1,7 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-
-interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-}
+import { useChat } from 'ai/react';
+import { useRef, useEffect, useState } from 'react';
 
 interface Report {
   summary: string;
@@ -30,9 +25,9 @@ interface Report {
 const AUDIT_TRIGGER = '__RUN_SAMPLE_AUDIT__';
 
 export default function Home() {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const { messages, input, handleInputChange, handleSubmit, append, isLoading } = useChat({
+    api: '/api/chat',
+  });
   const [report, setReport] = useState<Report | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -44,66 +39,28 @@ export default function Home() {
     scrollToBottom();
   }, [messages]);
 
-  const sendMessage = async (content: string) => {
-    if (!content.trim() || isLoading) return;
-
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: content.trim(),
-    };
-
-    const newMessages = [...messages, userMessage];
-    setMessages(newMessages);
-    setInput('');
-    setIsLoading(true);
-
-    try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messages: newMessages.map(m => ({
-            role: m.role,
-            content: m.content,
-          })),
-        }),
-      });
-
-      const data = await response.json();
-
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: data.message,
-      };
-
-      setMessages([...newMessages, assistantMessage]);
-
-      if (data.report) {
-        setReport(data.report);
+  // Check for report data in the last assistant message
+  useEffect(() => {
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage?.role === 'assistant' && lastMessage.content) {
+      // Try to extract report JSON if present
+      try {
+        const match = lastMessage.content.match(/<!--REPORT:(.*?):REPORT-->/s);
+        if (match) {
+          const reportData = JSON.parse(match[1]);
+          setReport(reportData);
+        }
+      } catch {
+        // No report data in message
       }
-    } catch (error) {
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: `Error: ${error instanceof Error ? error.message : 'Failed to send message'}`,
-      };
-      setMessages([...newMessages, errorMessage]);
-    } finally {
-      setIsLoading(false);
     }
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    sendMessage(input);
-  };
+  }, [messages]);
 
   const runAudit = () => {
-    sendMessage(`Run audit on sample API ${AUDIT_TRIGGER}`);
+    append({
+      role: 'user',
+      content: `Run audit on sample API ${AUDIT_TRIGGER}`,
+    });
   };
 
   const getStatusColor = (status: string) => {
@@ -129,6 +86,14 @@ export default function Home() {
       critical: 'bg-red-900 text-red-300',
     };
     return colors[severity] || 'bg-gray-900 text-gray-300';
+  };
+
+  // Clean message content by removing audit trigger and report data
+  const cleanContent = (content: string) => {
+    return content
+      .replace(AUDIT_TRIGGER, '')
+      .replace(/<!--REPORT:.*?:REPORT-->/s, '')
+      .trim();
   };
 
   return (
@@ -168,7 +133,7 @@ export default function Home() {
                   }`}
                 >
                   <pre className="whitespace-pre-wrap font-sans text-sm">
-                    {message.content.replace(AUDIT_TRIGGER, '').trim()}
+                    {cleanContent(message.content)}
                   </pre>
                 </div>
               </div>
@@ -195,7 +160,7 @@ export default function Home() {
               <input
                 type="text"
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={handleInputChange}
                 placeholder="Ask about RFC/OWASP compliance..."
                 className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500"
                 disabled={isLoading}
