@@ -264,7 +264,7 @@ export async function runInSandbox<T>(
   const result = await sandbox.runCode(code);
 
   if (result.error) {
-    throw new Error(`Sandbox execution error: ${result.error.message}`);
+    throw new Error(`Sandbox execution error: ${result.error.name}: ${result.error.value}`);
   }
 
   // Parse the last result
