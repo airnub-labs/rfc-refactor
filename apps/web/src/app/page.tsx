@@ -1,0 +1,291 @@
+'use client';
+
+import { useState, useRef, useEffect } from 'react';
+
+interface Message {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+interface Report {
+  summary: string;
+  overallHealth: string;
+  endpoints: Array<{
+    endpoint: string;
+    method: string;
+    status: string;
+    issues: Array<{
+      severity: string;
+      description: string;
+      rfcReferences: string[];
+      owaspReferences: string[];
+    }>;
+    suggestions: string[];
+  }>;
+  rfcsCited: string[];
+  owaspCited: string[];
+}
+
+const AUDIT_TRIGGER = '__RUN_SAMPLE_AUDIT__';
+
+export default function Home() {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [report, setReport] = useState<Report | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const sendMessage = async (content: string) => {
+    if (!content.trim() || isLoading) return;
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: content.trim(),
+    };
+
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
+    setInput('');
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: newMessages.map(m => ({
+            role: m.role,
+            content: m.content,
+          })),
+        }),
+      });
+
+      const data = await response.json();
+
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: data.message,
+      };
+
+      setMessages([...newMessages, assistantMessage]);
+
+      if (data.report) {
+        setReport(data.report);
+      }
+    } catch (error) {
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: `Error: ${error instanceof Error ? error.message : 'Failed to send message'}`,
+      };
+      setMessages([...newMessages, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    sendMessage(input);
+  };
+
+  const runAudit = () => {
+    sendMessage(`Run audit on sample API ${AUDIT_TRIGGER}`);
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'compliant':
+      case 'healthy':
+        return 'text-green-400';
+      case 'warning':
+      case 'degraded':
+        return 'text-yellow-400';
+      case 'critical':
+        return 'text-red-400';
+      default:
+        return 'text-gray-400';
+    }
+  };
+
+  const getSeverityBadge = (severity: string) => {
+    const colors: Record<string, string> = {
+      low: 'bg-blue-900 text-blue-300',
+      medium: 'bg-yellow-900 text-yellow-300',
+      high: 'bg-orange-900 text-orange-300',
+      critical: 'bg-red-900 text-red-300',
+    };
+    return colors[severity] || 'bg-gray-900 text-gray-300';
+  };
+
+  return (
+    <main className="flex min-h-screen flex-col bg-gray-900 text-white">
+      {/* Header */}
+      <header className="border-b border-gray-800 p-4">
+        <h1 className="text-2xl font-bold">E2B RFC/OWASP Auditor</h1>
+        <p className="text-sm text-gray-400">
+          Audit HTTP APIs for RFC compliance and security issues
+        </p>
+      </header>
+
+      <div className="flex flex-1 overflow-hidden">
+        {/* Chat Section */}
+        <div className="flex flex-1 flex-col">
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {messages.length === 0 && (
+              <div className="text-center text-gray-500 mt-8">
+                <p>Welcome! Click "Run Audit" to analyze the sample API,</p>
+                <p>or ask a question about RFC/OWASP compliance.</p>
+              </div>
+            )}
+
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={`flex ${
+                  message.role === 'user' ? 'justify-end' : 'justify-start'
+                }`}
+              >
+                <div
+                  className={`max-w-[80%] rounded-lg p-3 ${
+                    message.role === 'user'
+                      ? 'bg-blue-600'
+                      : 'bg-gray-800'
+                  }`}
+                >
+                  <pre className="whitespace-pre-wrap font-sans text-sm">
+                    {message.content.replace(AUDIT_TRIGGER, '').trim()}
+                  </pre>
+                </div>
+              </div>
+            ))}
+
+            {isLoading && (
+              <div className="flex justify-start">
+                <div className="bg-gray-800 rounded-lg p-3">
+                  <div className="flex space-x-2">
+                    <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" />
+                    <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce delay-100" />
+                    <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce delay-200" />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Input */}
+          <div className="border-t border-gray-800 p-4">
+            <form onSubmit={handleSubmit} className="flex gap-2">
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Ask about RFC/OWASP compliance..."
+                className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500"
+                disabled={isLoading}
+              />
+              <button
+                type="submit"
+                disabled={isLoading || !input.trim()}
+                className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 px-4 py-2 rounded-lg transition-colors"
+              >
+                Send
+              </button>
+              <button
+                type="button"
+                onClick={runAudit}
+                disabled={isLoading}
+                className="bg-green-600 hover:bg-green-700 disabled:bg-gray-700 px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
+              >
+                Run Audit
+              </button>
+            </form>
+          </div>
+        </div>
+
+        {/* Report Panel */}
+        {report && (
+          <div className="w-96 border-l border-gray-800 overflow-y-auto p-4">
+            <h2 className="text-lg font-bold mb-4">Audit Report</h2>
+
+            <div className="mb-4">
+              <span className="text-sm text-gray-400">Overall Health: </span>
+              <span className={`font-bold ${getStatusColor(report.overallHealth)}`}>
+                {report.overallHealth.toUpperCase()}
+              </span>
+            </div>
+
+            {report.endpoints.map((endpoint, idx) => (
+              <div key={idx} className="mb-4 p-3 bg-gray-800 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs bg-gray-700 px-2 py-1 rounded">
+                    {endpoint.method}
+                  </span>
+                  <span className="text-sm font-mono">{endpoint.endpoint}</span>
+                </div>
+                <div className={`text-sm ${getStatusColor(endpoint.status)}`}>
+                  {endpoint.status}
+                </div>
+
+                {endpoint.issues.length > 0 && (
+                  <div className="mt-2 space-y-2">
+                    {endpoint.issues.map((issue, issueIdx) => (
+                      <div key={issueIdx} className="text-xs">
+                        <span className={`px-1.5 py-0.5 rounded ${getSeverityBadge(issue.severity)}`}>
+                          {issue.severity}
+                        </span>
+                        <p className="mt-1 text-gray-300">{issue.description}</p>
+                        {issue.rfcReferences.length > 0 && (
+                          <p className="text-gray-500">
+                            RFC: {issue.rfcReferences.join(', ')}
+                          </p>
+                        )}
+                        {issue.owaspReferences.length > 0 && (
+                          <p className="text-gray-500">
+                            OWASP: {issue.owaspReferences.join(', ')}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {(report.rfcsCited.length > 0 || report.owaspCited.length > 0) && (
+              <div className="mt-4 p-3 bg-gray-800 rounded-lg">
+                <h3 className="text-sm font-bold mb-2">Standards Referenced</h3>
+                {report.rfcsCited.length > 0 && (
+                  <p className="text-xs text-gray-400">
+                    RFCs: {report.rfcsCited.join(', ')}
+                  </p>
+                )}
+                {report.owaspCited.length > 0 && (
+                  <p className="text-xs text-gray-400">
+                    OWASP: {report.owaspCited.join(', ')}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </main>
+  );
+}

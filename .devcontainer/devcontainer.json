@@ -1,0 +1,26 @@
+{
+  "name": "E2B RFC/OWASP Auditor",
+  "dockerComposeFile": "../docker/docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspace",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss",
+        "ms-azuretools.vscode-docker"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "typescript.tsdk": "node_modules/typescript/lib"
+      }
+    }
+  },
+  "forwardPorts": [3000, 7687, 8080],
+  "postCreateCommand": "pnpm install",
+  "remoteEnv": {
+    "NODE_ENV": "development"
+  }
+}

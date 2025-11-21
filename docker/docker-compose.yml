@@ -1,0 +1,89 @@
+version: '3.8'
+
+services:
+  # Main application service
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.app
+    ports:
+      - "3000:3000"
+    volumes:
+      - ..:/workspace:cached
+      - node_modules:/workspace/node_modules
+      - app_node_modules:/workspace/apps/web/node_modules
+      - core_node_modules:/workspace/packages/auditor-core/node_modules
+      - sample_node_modules:/workspace/packages/sample-api/node_modules
+    environment:
+      - NODE_ENV=development
+      - MCP_GATEWAY_URL=http://mcp-gateway:8080
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GROQ_API_URL=https://api.groq.com/openai/v1/chat/completions
+      - E2B_API_KEY=${E2B_API_KEY}
+    depends_on:
+      - memgraph
+      - mcp-gateway
+    command: pnpm dev
+
+  # Memgraph database
+  memgraph:
+    image: memgraph/memgraph-platform:latest
+    ports:
+      - "7687:7687"
+      - "7444:7444"
+      - "3001:3000"
+    volumes:
+      - memgraph_data:/var/lib/memgraph
+      - memgraph_log:/var/log/memgraph
+    environment:
+      - MEMGRAPH_USER=memgraph
+      - MEMGRAPH_PASSWORD=memgraph
+
+  # Memgraph MCP Server
+  memgraph-mcp:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - ./memgraph-mcp:/app
+    environment:
+      - MEMGRAPH_HOST=memgraph
+      - MEMGRAPH_PORT=7687
+      - MEMGRAPH_USER=memgraph
+      - MEMGRAPH_PASSWORD=memgraph
+    depends_on:
+      - memgraph
+    command: sh -c "npm install && npm start"
+
+  # Perplexity MCP Server
+  perplexity-mcp:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - ./perplexity-mcp:/app
+    environment:
+      - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY}
+    command: sh -c "npm install && npm start"
+
+  # MCP Gateway (Docker MCP Toolkit)
+  mcp-gateway:
+    image: node:20-alpine
+    working_dir: /app
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./mcp-gateway:/app
+    environment:
+      - MEMGRAPH_MCP_URL=http://memgraph-mcp:3000
+      - PERPLEXITY_MCP_URL=http://perplexity-mcp:3000
+    depends_on:
+      - memgraph-mcp
+      - perplexity-mcp
+    command: sh -c "npm install && npm start"
+
+volumes:
+  memgraph_data:
+  memgraph_log:
+  node_modules:
+  app_node_modules:
+  core_node_modules:
+  sample_node_modules:
