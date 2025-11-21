@@ -3,11 +3,9 @@ import { streamText } from 'ai';
 import {
   runAuditOnSampleApi,
   reportToSummary,
+  AUDIT_TRIGGER,
   type ComplianceReport,
 } from '@e2b-auditor/core';
-
-// Special token to trigger audit
-const AUDIT_TRIGGER = '__RUN_SAMPLE_AUDIT__';
 
 // System prompt for the RFC/OWASP auditor
 const SYSTEM_PROMPT = `You are an expert RFC and OWASP Top 10 compliance auditor for HTTP APIs.
