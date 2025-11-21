@@ -12,6 +12,7 @@
   "dependencies": {
     "@ai-sdk/groq": "^0.0.1",
     "@e2b-auditor/core": "workspace:*",
+    "@e2b/code-interpreter": "^2.2.0",
     "ai": "^3.0.0",
     "next": "^16.0.0",
     "react": "^19.0.0",
