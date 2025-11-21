@@ -8,6 +8,7 @@ import { probeSampleApi } from './probeHttp.js';
 import { sanitizeHttpExchanges } from './sanitizeHttp.js';
 import { discoverAndUpsertSpecs, fetchGraphContextForFindings } from './graphContext.js';
 import { analyzeComplianceWithGroq } from './groqClient.js';
+import { configureMcpGateway } from './mcpClient.js';
 
 /**
  * Run a full audit on the sample API
@@ -20,6 +21,12 @@ export async function runAuditOnSampleApi(): Promise<ComplianceReport> {
   const sandbox = await createSandbox();
 
   try {
+    // Configure MCP gateway with E2B credentials
+    if (sandbox.mcpUrl && sandbox.mcpToken) {
+      console.log('[Audit] Configuring E2B MCP gateway...');
+      configureMcpGateway(sandbox.mcpUrl, sandbox.mcpToken);
+    }
+
     // 2. Launch sample API inside sandbox
     console.log('[Audit] Starting sample API in sandbox...');
     await runSampleApiInSandbox(sandbox);

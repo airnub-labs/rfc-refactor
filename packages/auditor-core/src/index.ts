@@ -35,6 +35,8 @@ export {
   callPerplexityMcp,
   callMemgraphMcp,
   getMemgraphSchema,
+  configureMcpGateway,
+  getMcpGatewayUrl,
 } from './mcpClient.js';
 
 // Graph Context

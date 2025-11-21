@@ -1,5 +1,6 @@
 /**
  * E2B sandbox client for creating and managing sandboxes
+ * Uses E2B's built-in MCP gateway for tool access
  */
 
 import { Sandbox } from '@e2b/code-interpreter';
@@ -7,19 +8,70 @@ import { Sandbox } from '@e2b/code-interpreter';
 export interface SandboxHandle {
   sandbox: Sandbox;
   id: string;
+  mcpUrl: string;
+  mcpToken: string;
+}
+
+// MCP configuration for services
+interface MCPConfig {
+  perplexity?: {
+    apiKey: string;
+  };
+  // Memgraph is accessed via external Docker service, not E2B gateway
 }
 
 /**
- * Create a new E2B sandbox
+ * Create a new E2B sandbox with MCP gateway configured
  */
 export async function createSandbox(): Promise<SandboxHandle> {
+  const mcpConfig: MCPConfig = {};
+
+  // Configure Perplexity if API key is available
+  if (process.env.PERPLEXITY_API_KEY) {
+    mcpConfig.perplexity = {
+      apiKey: process.env.PERPLEXITY_API_KEY,
+    };
+  }
+
+  // Create sandbox with MCP configuration
+  // Using the standard API - beta API uses betaCreate/betaGetMcpUrl
   const sandbox = await Sandbox.create({
     timeoutMs: 300000, // 5 minutes
+    // MCP gateway configuration
+    ...(Object.keys(mcpConfig).length > 0 && { mcp: mcpConfig }),
   });
+
+  // Get MCP gateway credentials
+  // Note: These methods may be getMcpUrl/getMcpToken or betaGetMcpUrl/betaGetMcpToken
+  // depending on SDK version
+  let mcpUrl = '';
+  let mcpToken = '';
+
+  try {
+    // Try standard API first
+    if (typeof (sandbox as any).getMcpUrl === 'function') {
+      mcpUrl = (sandbox as any).getMcpUrl();
+      mcpToken = await (sandbox as any).getMcpToken();
+    } else if (typeof (sandbox as any).betaGetMcpUrl === 'function') {
+      // Fall back to beta API
+      mcpUrl = (sandbox as any).betaGetMcpUrl();
+      mcpToken = await (sandbox as any).betaGetMcpToken();
+    } else {
+      // Fallback to external MCP gateway
+      mcpUrl = process.env.MCP_GATEWAY_URL || 'http://localhost:8080';
+      mcpToken = '';
+    }
+  } catch {
+    // Fallback to external MCP gateway
+    mcpUrl = process.env.MCP_GATEWAY_URL || 'http://localhost:8080';
+    mcpToken = '';
+  }
 
   return {
     sandbox,
     id: sandbox.sandboxId,
+    mcpUrl,
+    mcpToken,
   };
 }
 

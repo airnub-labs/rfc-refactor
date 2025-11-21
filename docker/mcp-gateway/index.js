@@ -16,13 +16,26 @@ app.post('/tools/:toolName', async (req, res) => {
   try {
     let targetUrl;
 
+    // Memgraph MCP tools
     if (toolName.startsWith('memgraph_mcp.')) {
       const tool = toolName.replace('memgraph_mcp.', '');
       targetUrl = `${MEMGRAPH_MCP_URL}/tools/${tool}`;
-    } else if (toolName.startsWith('perplexity_mcp.')) {
+    }
+    // Perplexity MCP tools - support multiple naming conventions
+    else if (toolName.startsWith('perplexity_mcp.')) {
       const tool = toolName.replace('perplexity_mcp.', '');
       targetUrl = `${PERPLEXITY_MCP_URL}/tools/${tool}`;
-    } else {
+    }
+    // E2B gateway format: perplexity.perplexity_ask
+    else if (toolName.startsWith('perplexity.')) {
+      const tool = toolName.replace('perplexity.', '');
+      targetUrl = `${PERPLEXITY_MCP_URL}/tools/${tool}`;
+    }
+    // Direct tool names (for E2B gateway compatibility)
+    else if (['perplexity_ask', 'perplexity_search', 'perplexity_research'].includes(toolName)) {
+      targetUrl = `${PERPLEXITY_MCP_URL}/tools/${toolName}`;
+    }
+    else {
       return res.status(400).json({ error: `Unknown tool: ${toolName}` });
     }
 

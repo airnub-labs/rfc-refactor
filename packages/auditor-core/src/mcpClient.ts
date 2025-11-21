@@ -1,23 +1,47 @@
 /**
  * MCP Client - communicates with MCP Gateway for Perplexity and Memgraph tools
+ * Supports both E2B built-in gateway and external Docker gateway
  */
 
 import type { MCPCallParams, MCPCallResponse } from './types.js';
 import { applyAspects, type Aspect } from './aspects/applyAspects.js';
 import { sanitizeObjectForEgress } from './aspects/egressGuard.js';
 
-// MCP Gateway configuration
-const MCP_GATEWAY_URL = process.env.MCP_GATEWAY_URL || 'http://localhost:8080';
+// MCP Gateway configuration - can be overridden by sandbox handle
+let mcpGatewayUrl = process.env.MCP_GATEWAY_URL || 'http://localhost:8080';
+let mcpGatewayToken = '';
+
+/**
+ * Configure MCP client with gateway credentials from E2B sandbox
+ */
+export function configureMcpGateway(url: string, token: string): void {
+  mcpGatewayUrl = url;
+  mcpGatewayToken = token;
+}
+
+/**
+ * Get current MCP gateway URL
+ */
+export function getMcpGatewayUrl(): string {
+  return mcpGatewayUrl;
+}
 
 /**
  * Base MCP call function
  */
 async function baseMcpCall(params: MCPCallParams): Promise<MCPCallResponse> {
-  const response = await fetch(`${MCP_GATEWAY_URL}/tools/${params.toolName}`, {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  // Add bearer token if available (for E2B gateway)
+  if (mcpGatewayToken) {
+    headers['Authorization'] = `Bearer ${mcpGatewayToken}`;
+  }
+
+  const response = await fetch(`${mcpGatewayUrl}/tools/${params.toolName}`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: JSON.stringify(params.params),
   });
 
@@ -74,18 +98,31 @@ export const mcpCall = applyAspects(baseMcpCall, [
 
 /**
  * Call Perplexity MCP for spec discovery
+ * Uses perplexity_ask tool from official MCP server
  */
 export async function callPerplexityMcp(query: string): Promise<string> {
-  const response = await mcpCall({
-    toolName: 'perplexity_mcp.search',
-    params: { query },
-  });
+  // Try E2B gateway perplexity tool first, then fallback to external
+  const toolNames = [
+    'perplexity.perplexity_ask',  // E2B gateway format
+    'perplexity_mcp.search',       // External gateway format
+  ];
 
-  if (response.error) {
-    throw new Error(response.error);
+  let lastError: string | undefined;
+
+  for (const toolName of toolNames) {
+    const response = await mcpCall({
+      toolName,
+      params: { query },
+    });
+
+    if (!response.error) {
+      return response.result as string;
+    }
+
+    lastError = response.error;
   }
 
-  return response.result as string;
+  throw new Error(lastError || 'Failed to call Perplexity MCP');
 }
 
 /**
