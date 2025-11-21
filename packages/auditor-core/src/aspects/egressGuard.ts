@@ -3,18 +3,9 @@
  * This is the ONLY place where PII sanitization should happen for egress
  */
 
-// Note: @redactpii/node may need different import syntax based on version
-// Using a try-catch pattern to handle different module formats
-let redactPii: (text: string) => string;
+import redactPiiModule from '@redactpii/node';
 
-try {
-  // Try ESM import
-  const redactModule = await import('@redactpii/node');
-  redactPii = redactModule.default || redactModule.redact || ((text: string) => text);
-} catch {
-  // Fallback: simple pattern-based redaction if module not available
-  redactPii = (text: string) => text;
-}
+const redactPii = redactPiiModule;
 
 // Patterns for common PII and sensitive data
 const SENSITIVE_PATTERNS = [
