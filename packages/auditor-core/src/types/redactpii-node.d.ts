@@ -1,4 +1,5 @@
 declare module '@redactpii/node' {
-  export function redact(text: string): string;
-  export default function (text: string): string;
+  export class Redactor {
+    redact(text: string): string;
+  }
 }

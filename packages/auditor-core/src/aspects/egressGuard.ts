@@ -1,13 +1,58 @@
 /**
- * Egress guard - wraps @redactpii/node for PII sanitization
- * This is the ONLY place where PII sanitization should happen for egress
+ * Egress Guard - PII and sensitive data sanitization for outbound data
+ *
+ * This module is the ONLY place where PII sanitization should happen for egress.
+ * All data leaving the system (to LLMs, MCP tools, etc.) must pass through here.
+ *
+ * ## Two-Layer Sanitization Approach
+ *
+ * We use two complementary methods to ensure thorough sanitization:
+ *
+ * ### Layer 1: @redactpii/node (ML-based)
+ * - Uses machine learning to detect PII patterns
+ * - Good at catching context-dependent PII (names, addresses)
+ * - May miss some technical secrets (API keys, JWTs)
+ *
+ * ### Layer 2: Regex patterns (rule-based)
+ * - Catches specific technical patterns (API keys, JWTs, etc.)
+ * - More predictable and testable
+ * - Complements ML detection for comprehensive coverage
+ *
+ * ## Usage
+ *
+ * ```typescript
+ * // Sanitize a string
+ * const safe = sanitizeTextForEgress(userInput);
+ *
+ * // Sanitize an object recursively
+ * const safeObj = sanitizeObjectForEgress(userData);
+ *
+ * // Check if a header is sensitive
+ * if (isSensitiveHeader('Authorization')) {
+ *   // Don't include this header
+ * }
+ * ```
+ *
+ * ## Adding New Patterns
+ *
+ * To add a new sensitive pattern, add it to SENSITIVE_PATTERNS array:
+ * ```typescript
+ * { pattern: /your-regex/g, replacement: '[LABEL]' }
+ * ```
  */
 
-import redactPiiModule from '@redactpii/node';
+import { Redactor } from '@redactpii/node';
 
-const redactPii = redactPiiModule;
+// Create a redactor instance for PII detection
+const redactor = new Redactor();
+const redactPii = (text: string): string => redactor.redact(text);
 
-// Patterns for common PII and sensitive data
+/**
+ * Regex patterns for detecting sensitive data
+ *
+ * These patterns catch technical secrets that ML-based detection might miss.
+ * Each pattern has a descriptive replacement to indicate what was redacted.
+ */
 const SENSITIVE_PATTERNS = [
   // Email addresses
   { pattern: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, replacement: '[EMAIL]' },

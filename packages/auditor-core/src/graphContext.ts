@@ -1,5 +1,10 @@
 /**
  * Graph context module - manages RFC/OWASP spec discovery and Memgraph operations
+ *
+ * This module handles:
+ * 1. Discovering relevant RFCs and OWASP categories from HTTP exchanges
+ * 2. Storing specs in the Memgraph knowledge graph
+ * 3. Fetching related context for compliance analysis
  */
 
 import type {
@@ -9,6 +14,10 @@ import type {
   SanitizedHttpExchange,
 } from './types.js';
 import { callPerplexityMcp, callMemgraphMcp } from './mcpClient.js';
+import {
+  OWASP_CATEGORIES,
+  findOwaspCategoriesByKeyword,
+} from './config/owaspCategories.js';
 
 /**
  * Discover relevant specs from HTTP exchanges using Perplexity MCP
@@ -46,60 +55,74 @@ Return a structured list of spec IDs and their relevance to the observed issues.
 
 /**
  * Parse Perplexity result to extract specs
+ *
+ * Extracts RFC numbers and OWASP categories mentioned in the Perplexity response.
  */
 function parseSpecsFromPerplexityResult(result: string): EnrichedSpec[] {
   const specs: EnrichedSpec[] = [];
 
-  // Extract RFC mentions
-  const rfcMatches = result.matchAll(/RFC\s*(\d+)/gi);
+  // Extract RFC mentions using regex
+  const rfcSpecs = extractRfcSpecs(result);
+  specs.push(...rfcSpecs);
+
+  // Extract OWASP categories using centralized config
+  const owaspSpecs = extractOwaspSpecs(result);
+  specs.push(...owaspSpecs);
+
+  return specs;
+}
+
+/**
+ * Extract RFC specifications from text
+ */
+function extractRfcSpecs(text: string): EnrichedSpec[] {
+  const rfcMatches = text.matchAll(/RFC\s*(\d+)/gi);
   const rfcSet = new Set<string>();
+
   for (const match of rfcMatches) {
     rfcSet.add(match[1]);
   }
 
-  for (const rfcNum of rfcSet) {
-    specs.push({
-      type: 'rfc',
-      id: `RFC${rfcNum}`,
-      title: `RFC ${rfcNum}`,
-      sections: [],
-    });
-  }
+  return Array.from(rfcSet).map(rfcNum => ({
+    type: 'rfc' as const,
+    id: `RFC${rfcNum}`,
+    title: `RFC ${rfcNum}`,
+    sections: [],
+  }));
+}
 
-  // Extract OWASP Top 10 mentions
-  const owaspCategories = [
-    { pattern: /A01.*Broken Access Control/gi, id: 'A01:2021', title: 'Broken Access Control' },
-    { pattern: /A02.*Cryptographic Failures/gi, id: 'A02:2021', title: 'Cryptographic Failures' },
-    { pattern: /A03.*Injection/gi, id: 'A03:2021', title: 'Injection' },
-    { pattern: /A04.*Insecure Design/gi, id: 'A04:2021', title: 'Insecure Design' },
-    { pattern: /A05.*Security Misconfiguration/gi, id: 'A05:2021', title: 'Security Misconfiguration' },
-    { pattern: /A06.*Vulnerable.*Components/gi, id: 'A06:2021', title: 'Vulnerable and Outdated Components' },
-    { pattern: /A07.*Authentication/gi, id: 'A07:2021', title: 'Identification and Authentication Failures' },
-    { pattern: /A08.*Software.*Data Integrity/gi, id: 'A08:2021', title: 'Software and Data Integrity Failures' },
-    { pattern: /A09.*Security Logging/gi, id: 'A09:2021', title: 'Security Logging and Monitoring Failures' },
-    { pattern: /A10.*Server-Side Request Forgery/gi, id: 'A10:2021', title: 'Server-Side Request Forgery' },
-  ];
+/**
+ * Extract OWASP categories from text using centralized config
+ */
+function extractOwaspSpecs(text: string): EnrichedSpec[] {
+  const specs: EnrichedSpec[] = [];
+  const addedIds = new Set<string>();
 
-  for (const category of owaspCategories) {
-    if (category.pattern.test(result)) {
+  // Check for explicit OWASP pattern matches
+  for (const category of OWASP_CATEGORIES) {
+    if (category.pattern.test(text) && !addedIds.has(category.id)) {
       specs.push({
         type: 'owasp',
         id: category.id,
         title: category.title,
         version: '2021',
       });
+      addedIds.add(category.id);
     }
   }
 
-  // Also check for generic mentions
-  if (/injection/gi.test(result) && !specs.find(s => s.id === 'A03:2021')) {
-    specs.push({ type: 'owasp', id: 'A03:2021', title: 'Injection', version: '2021' });
-  }
-  if (/cors|cross-origin/gi.test(result) && !specs.find(s => s.id === 'A05:2021')) {
-    specs.push({ type: 'owasp', id: 'A05:2021', title: 'Security Misconfiguration', version: '2021' });
-  }
-  if (/pii|sensitive data|data exposure/gi.test(result) && !specs.find(s => s.id === 'A02:2021')) {
-    specs.push({ type: 'owasp', id: 'A02:2021', title: 'Cryptographic Failures', version: '2021' });
+  // Also check for keyword matches
+  const keywordMatches = findOwaspCategoriesByKeyword(text);
+  for (const category of keywordMatches) {
+    if (!addedIds.has(category.id)) {
+      specs.push({
+        type: 'owasp',
+        id: category.id,
+        title: category.title,
+        version: '2021',
+      });
+      addedIds.add(category.id);
+    }
   }
 
   return specs;
