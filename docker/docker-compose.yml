@@ -21,39 +21,48 @@ services:
       - GROQ_API_URL=https://api.groq.com/openai/v1/chat/completions
       - E2B_API_KEY=${E2B_API_KEY}
       - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY}
-    depends_on:
-      - memgraph
-      - mcp-gateway
-    command: pnpm dev
-
-  # Memgraph database
-  memgraph:
-    image: memgraph/memgraph-platform:latest
-    ports:
-      - "7687:7687"
-      - "7444:7444"
-      - "3001:3000"
-    volumes:
-      - memgraph_data:/var/lib/memgraph
-      - memgraph_log:/var/log/memgraph
-    environment:
-      - MEMGRAPH_USER=memgraph
-      - MEMGRAPH_PASSWORD=memgraph
-
-  # Memgraph MCP Server
-  memgraph-mcp:
-    image: node:20-alpine
-    working_dir: /app
-    volumes:
-      - ./memgraph-mcp:/app
-    environment:
       - MEMGRAPH_HOST=memgraph
       - MEMGRAPH_PORT=7687
       - MEMGRAPH_USER=memgraph
       - MEMGRAPH_PASSWORD=memgraph
     depends_on:
       - memgraph
-    command: sh -c "npm install && npm start"
+      - mcp-gateway
+    command: pnpm dev
+
+  # Memgraph database with schema info enabled (required for MCP)
+  memgraph:
+    image: memgraph/memgraph-mage:latest
+    ports:
+      - "7687:7687"
+      - "7444:7444"
+    volumes:
+      - memgraph_data:/var/lib/memgraph
+      - memgraph_log:/var/log/memgraph
+    command: ["--schema-info-enabled=True"]
+    healthcheck:
+      test: ["CMD", "mgconsole", "-c", "RETURN 1;"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Memgraph MCP Server - built from official ai-toolkit repo
+  # https://github.com/memgraph/ai-toolkit/tree/main/integrations/mcp-memgraph
+  memgraph-mcp:
+    build:
+      context: ./memgraph-mcp
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8000"
+    environment:
+      - MEMGRAPH_URL=bolt://memgraph:7687
+      - MEMGRAPH_USER=memgraph
+      - MEMGRAPH_PASSWORD=memgraph
+      - MCP_TRANSPORT=streamable-http
+      - MCP_READ_ONLY=false
+    depends_on:
+      memgraph:
+        condition: service_healthy
 
   # Perplexity MCP Server - using official Docker Hub image with HTTP adapter
   # The official mcp/perplexity-ask uses stdio, so we wrap it with an HTTP adapter
@@ -80,7 +89,7 @@ services:
     volumes:
       - ./mcp-gateway:/app
     environment:
-      - MEMGRAPH_MCP_URL=http://memgraph-mcp:3000
+      - MEMGRAPH_MCP_URL=http://memgraph-mcp:8000/mcp/
       - PERPLEXITY_MCP_URL=http://perplexity-mcp:3000
     depends_on:
       - memgraph-mcp

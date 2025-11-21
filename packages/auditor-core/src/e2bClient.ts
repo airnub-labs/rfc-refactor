@@ -17,7 +17,7 @@
  * - Configure with: 'github/owner/repo': { installCmd, runCmd }
  * - E2B clones the repo, runs installCmd, then starts with runCmd
  * - Server must use stdio transport
- * - Example: Memgraph uses custom 'github/memgraph/mcp-memgraph'
+ * - Example: Memgraph uses 'github/memgraph/ai-toolkit' (mcp-memgraph)
  */
 
 import { Sandbox } from '@e2b/code-interpreter';
@@ -67,12 +67,12 @@ export async function createSandbox(options?: {
   }
 
   // Configure Memgraph MCP using custom server pattern from GitHub
-  // Custom MCP server for knowledge graph storage
-  // Following E2B docs: https://e2b.dev/docs/mcp/custom-servers
+  // Repo: https://github.com/memgraph/ai-toolkit/tree/main/integrations/mcp-memgraph
+  // E2B clones the repo, installs, and runs with stdio transport
   if (process.env.MEMGRAPH_HOST) {
-    mcpConfig['github/memgraph/mcp-memgraph'] = {
-      installCmd: 'pip install -e .',
-      runCmd: `python -m mcp_memgraph --host ${process.env.MEMGRAPH_HOST} --port ${process.env.MEMGRAPH_PORT || '7687'}`,
+    mcpConfig['github/memgraph/ai-toolkit'] = {
+      installCmd: 'cd integrations/mcp-memgraph && pip install .',
+      runCmd: 'MCP_TRANSPORT=stdio mcp-memgraph',
     };
   }
 
@@ -82,8 +82,13 @@ export async function createSandbox(options?: {
     // Pass environment variables to sandbox
     envs: {
       PERPLEXITY_API_KEY: process.env.PERPLEXITY_API_KEY || '',
-      MEMGRAPH_HOST: process.env.MEMGRAPH_HOST || '',
-      MEMGRAPH_PORT: process.env.MEMGRAPH_PORT || '7687',
+      // Memgraph MCP expects MEMGRAPH_URL in bolt:// format
+      MEMGRAPH_URL: process.env.MEMGRAPH_HOST
+        ? `bolt://${process.env.MEMGRAPH_HOST}:${process.env.MEMGRAPH_PORT || '7687'}`
+        : '',
+      MEMGRAPH_USER: process.env.MEMGRAPH_USER || 'memgraph',
+      MEMGRAPH_PASSWORD: process.env.MEMGRAPH_PASSWORD || '',
+      MCP_READ_ONLY: process.env.MCP_READ_ONLY || 'false',
     },
     // MCP gateway configuration
     ...(Object.keys(mcpConfig).length > 0 && { mcp: mcpConfig }),
