@@ -58,7 +58,10 @@ async function baseGroqChat(request: GroqChatRequest): Promise<GroqChatResponse>
     throw new Error(`Groq API error: ${response.status} - ${errorText}`);
   }
 
-  const result = await response.json();
+  const result = await response.json() as {
+    choices: Array<{ message?: { content?: string } }>;
+    usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
+  };
 
   return {
     content: result.choices[0]?.message?.content || '',
