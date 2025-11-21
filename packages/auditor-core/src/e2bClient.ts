@@ -8,14 +8,16 @@
  * - Gateway uses stdio transport internally, exposed via HTTP with bearer auth
  * - Use getMcpUrl()/getMcpToken() to get gateway credentials
  *
+ * Docker Hub MCP Servers:
+ * - Configure with: 'server-name': { apiKey: '...' }
+ * - E2B pulls the pre-built MCP server from Docker Hub
+ * - Example: Perplexity uses 'perplexity-ask' from Docker Hub
+ *
  * Custom MCP Servers (from GitHub):
  * - Configure with: 'github/owner/repo': { installCmd, runCmd }
  * - E2B clones the repo, runs installCmd, then starts with runCmd
  * - Server must use stdio transport
- *
- * For Memgraph:
- * - Runs as persistent Docker service (not inside sandbox)
- * - Accessed via external MCP gateway for knowledge graph persistence
+ * - Example: Memgraph uses custom 'github/memgraph/mcp-memgraph'
  */
 
 import { Sandbox } from '@e2b/code-interpreter';
@@ -28,13 +30,20 @@ export interface SandboxHandle {
 }
 
 // MCP configuration types following E2B patterns
+// Docker Hub MCP servers: just pass credentials (e.g., apiKey)
+// Custom MCP servers: use installCmd/runCmd pattern
+interface DockerHubMCPConfig {
+  apiKey?: string;
+  [key: string]: string | undefined;
+}
+
 interface CustomMCPServerConfig {
   runCmd: string;
   installCmd?: string;
 }
 
 type MCPConfig = {
-  [key: string]: CustomMCPServerConfig | Record<string, string>;
+  [key: string]: DockerHubMCPConfig | CustomMCPServerConfig;
 };
 
 /**
@@ -48,12 +57,22 @@ export async function createSandbox(options?: {
 }): Promise<SandboxHandle> {
   const mcpConfig: MCPConfig = {};
 
-  // Configure Perplexity MCP using custom server pattern from GitHub
-  // Following E2B docs: https://e2b.dev/docs/mcp/custom-servers
+  // Configure Perplexity MCP using Docker Hub MCP server
+  // Docker Hub: https://hub.docker.com/mcp/server/perplexity-ask
+  // E2B docs: https://e2b.dev/docs/mcp
   if (process.env.PERPLEXITY_API_KEY) {
-    mcpConfig['ppl-ai/modelcontextprotocol'] = {
-      installCmd: 'npm install',
-      runCmd: 'npx -y ts-node src/index.ts',
+    mcpConfig['perplexity-ask'] = {
+      apiKey: process.env.PERPLEXITY_API_KEY,
+    };
+  }
+
+  // Configure Memgraph MCP using custom server pattern from GitHub
+  // Custom MCP server for knowledge graph storage
+  // Following E2B docs: https://e2b.dev/docs/mcp/custom-servers
+  if (process.env.MEMGRAPH_HOST) {
+    mcpConfig['github/memgraph/mcp-memgraph'] = {
+      installCmd: 'pip install -e .',
+      runCmd: `python -m mcp_memgraph --host ${process.env.MEMGRAPH_HOST} --port ${process.env.MEMGRAPH_PORT || '7687'}`,
     };
   }
 
@@ -63,6 +82,8 @@ export async function createSandbox(options?: {
     // Pass environment variables to sandbox
     envs: {
       PERPLEXITY_API_KEY: process.env.PERPLEXITY_API_KEY || '',
+      MEMGRAPH_HOST: process.env.MEMGRAPH_HOST || '',
+      MEMGRAPH_PORT: process.env.MEMGRAPH_PORT || '7687',
     },
     // MCP gateway configuration
     ...(Object.keys(mcpConfig).length > 0 && { mcp: mcpConfig }),
