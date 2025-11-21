@@ -45,7 +45,7 @@ export default function Home() {
     if (lastMessage?.role === 'assistant' && lastMessage.content) {
       // Try to extract report JSON if present
       try {
-        const match = lastMessage.content.match(/<!--REPORT:(.*?):REPORT-->/s);
+        const match = lastMessage.content.match(/<!--REPORT:([\s\S]*?):REPORT-->/);
         if (match) {
           const reportData = JSON.parse(match[1]);
           setReport(reportData);
