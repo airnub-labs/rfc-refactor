@@ -31,6 +31,7 @@ export function getMcpGatewayUrl(): string {
 async function baseMcpCall(params: MCPCallParams): Promise<MCPCallResponse> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    'Accept': 'application/json',
   };
 
   // Add bearer token if available (for E2B gateway)
