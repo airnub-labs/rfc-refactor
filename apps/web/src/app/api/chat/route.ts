@@ -30,13 +30,23 @@ You have deep knowledge of:
 
 Be concise, specific, and reference relevant RFC sections or OWASP categories when applicable.`;
 
-// Initialize Groq client
-const groq = createGroq({
-  apiKey: process.env.GROQ_API_KEY,
-});
-
 export async function POST(request: Request) {
   try {
+    const groqApiKey = process.env.GROQ_API_KEY;
+    if (!groqApiKey) {
+      const message = 'GROQ_API_KEY is missing. Add it to apps/web/.env.local or export it in your shell before running pnpm dev.';
+      console.error(`[API] ${message}`);
+      return new Response(message, {
+        status: 500,
+        headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+      });
+    }
+
+    // Initialize Groq client lazily so we can validate the API key first
+    const groq = createGroq({
+      apiKey: groqApiKey,
+    });
+
     const { messages } = await request.json();
 
     if (!messages || messages.length === 0) {

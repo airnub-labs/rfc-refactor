@@ -1,9 +1,7 @@
 {
   "name": "E2B RFC/OWASP Auditor",
-  "dockerComposeFile": "../docker/docker-compose.yml",
-  "service": "app",
-  "workspaceFolder": "/workspace",
-  "shutdownAction": "stopCompose",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:20",
+  "workspaceFolder": "/workspaces/rfc-refactor",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -35,8 +33,8 @@
       "label": "Memgraph MCP"
     }
   },
-  "postCreateCommand": "pnpm install",
-  "postStartCommand": "cd apps/web && pnpm dev -- --hostname 0.0.0.0 --port 3000",
+  "postCreateCommand": "corepack enable pnpm && pnpm install",
+  "postStartCommand": "docker compose -f docker/docker-compose.yml up -d memgraph memgraph-mcp && cd apps/web && pnpm dev -- --hostname 0.0.0.0 --port 3000",
   "remoteEnv": {
     "NODE_ENV": "development",
     "E2B_API_KEY": "${localEnv:E2B_API_KEY}",
