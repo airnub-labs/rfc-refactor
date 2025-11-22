@@ -3,6 +3,8 @@ name: rfc-refactor
 services:
   # Main application service
   app:
+    # Only started when explicitly targeted (e.g., Codespaces devcontainer)
+    profiles: ["codespaces"]
     build:
       context: ..
       dockerfile: docker/Dockerfile.app

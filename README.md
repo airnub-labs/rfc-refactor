@@ -136,7 +136,7 @@ Each audit finding links to the exact lines in the codebase:
 
 2. Click **Code** → **Codespaces** → **Create codespace on main**
 
-3. Wait for the container to build (~2-3 minutes). Docker Compose starts Memgraph + Memgraph MCP for you.
+3. Wait for the container to build (~2-3 minutes). Docker Compose starts Memgraph + Memgraph MCP for you. The `app` service is under a `codespaces` profile so it only comes up when the devcontainer targets it.
 
 4. The web app auto-starts on port 3000 via the devcontainer `postStartCommand` (`pnpm dev` from `apps/web`), so the browser preview just works.
 
@@ -148,7 +148,7 @@ cd rfc-refactor
 cp .env.example .env.local
 # Edit .env.local with your API keys (Next.js reads this automatically)
 
-# Start graph deps only
+# Start graph deps only (default profile skips the app container)
 docker compose -f docker/docker-compose.yml up memgraph memgraph-mcp
 
 # In another terminal, start the app directly (best DX)
