@@ -16,22 +16,11 @@ services:
       - sample_node_modules:/workspace/packages/sample-api/node_modules
     environment:
       - NODE_ENV=development
-      # API Keys - set these as Codespaces secrets or in .env.local
-      - E2B_API_KEY=${E2B_API_KEY:-}
-      - GROQ_API_KEY=${GROQ_API_KEY:-}
-      - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY:-}
-      # Groq defaults
-      - GROQ_API_URL=https://api.groq.com/openai/v1/chat/completions
-      - GROQ_MODEL=compound-beta
-      # Memgraph defaults (matches docker-compose service)
-      - MEMGRAPH_HOST=memgraph
-      - MEMGRAPH_PORT=7687
-      - MEMGRAPH_USER=memgraph
-      - MEMGRAPH_PASSWORD=memgraph
-      - MCP_READ_ONLY=false
     depends_on:
       - memgraph
-    command: pnpm dev
+    # The app itself is started via pnpm dev from apps/web (see README and devcontainer postStart).
+    # Keep the container alive so Codespaces can attach and run the web app directly.
+    command: sleep infinity
 
   # Memgraph database with schema info enabled (required for MCP)
   memgraph:

@@ -248,8 +248,8 @@ Sample API running on port 3001
 
 ## Pre-Recording Checklist
 
-- [ ] Run `docker compose up -d` (Memgraph + MCP server)
-- [ ] Run `pnpm dev` from `apps/web` in visible terminal
+- [ ] Run `docker compose up -d memgraph memgraph-mcp` (graph services only)
+- [ ] Run `pnpm --filter web dev` from `apps/web` in visible terminal
 - [ ] Clear terminal before recording for clean logs
 - [ ] Clear browser localStorage if you want empty graph
 - [ ] Open GitHub repo in separate tab for "View Source" demo
