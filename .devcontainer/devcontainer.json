@@ -3,6 +3,7 @@
   "dockerComposeFile": "../docker/docker-compose.yml",
   "service": "app",
   "workspaceFolder": "/workspace",
+  "shutdownAction": "stopCompose",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -18,8 +19,24 @@
       }
     }
   },
-  "forwardPorts": [3000, 7687, 8080],
+  "forwardPorts": [3000, 7687, 7444, 8001],
+  "portsAttributes": {
+    "3000": {
+      "label": "Next.js App",
+      "onAutoForward": "openPreview"
+    },
+    "7687": {
+      "label": "Memgraph Bolt"
+    },
+    "7444": {
+      "label": "Memgraph Lab"
+    },
+    "8001": {
+      "label": "Memgraph MCP"
+    }
+  },
   "postCreateCommand": "pnpm install",
+  "postStartCommand": "pnpm dev",
   "remoteEnv": {
     "NODE_ENV": "development"
   }
