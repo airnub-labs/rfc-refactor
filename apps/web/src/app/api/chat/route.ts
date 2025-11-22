@@ -112,6 +112,20 @@ export async function POST(request: Request) {
     const isGraphQuery = graphQueryKeywords.some(kw => lastContent.includes(kw));
 
     if (isGraphView || isGraphQuery) {
+      if (!hasMcpGateway) {
+        const message = 'Knowledge graph is unavailable because the MCP gateway is not configured. Set MCP_GATEWAY_URL and MCP_GATEWAY_TOKEN in your environment.';
+        const encoder = new TextEncoder();
+        const stream = new ReadableStream({
+          start(controller) {
+            controller.enqueue(encoder.encode(`0:${JSON.stringify(message)}\n`));
+            controller.close();
+          },
+        });
+        return new Response(stream, {
+          headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+        });
+      }
+
       console.log('[API] Detected graph request');
 
       try {
