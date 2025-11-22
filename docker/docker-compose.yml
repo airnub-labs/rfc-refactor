@@ -23,7 +23,7 @@ services:
       - MEMGRAPH_PASSWORD=memgraph
     depends_on:
       - memgraph
-    command: pnpm dev
+    command: sleep infinity
 
   # Memgraph database with schema info enabled (required for MCP)
   memgraph:
