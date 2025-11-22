@@ -309,6 +309,47 @@ export async function fetchGraphContextForFindings(
     throw new Error('MCP gateway is not configured; cannot fetch graph context.');
   }
 
+  const normalizeMemgraphRows = (result: unknown): Array<Record<string, unknown>> => {
+    if (Array.isArray(result)) {
+      return result as Array<Record<string, unknown>>;
+    }
+
+    if (result && typeof result === 'object') {
+      const obj = result as Record<string, unknown>;
+
+      // Handle Memgraph formats like { columns: [...], data: [[...], ...] }
+      if (Array.isArray(obj.data) && Array.isArray(obj.columns)) {
+        const columns = obj.columns as string[];
+        return (obj.data as Array<unknown>).map((row: unknown) => {
+          if (Array.isArray(row)) {
+            const mapped: Record<string, unknown> = {};
+            columns.forEach((col, idx) => {
+              mapped[col] = (row as Array<unknown>)[idx];
+            });
+            return mapped;
+          }
+          return row as Record<string, unknown>;
+        });
+      }
+
+      if (Array.isArray(obj.data)) return obj.data as Array<Record<string, unknown>>;
+      if (Array.isArray(obj.rows)) return obj.rows as Array<Record<string, unknown>>;
+      if (Array.isArray(obj.records)) return obj.records as Array<Record<string, unknown>>;
+      if (Array.isArray(obj.result)) return obj.result as Array<Record<string, unknown>>;
+    }
+
+    if (typeof result === 'string') {
+      try {
+        const parsed = JSON.parse(result);
+        return normalizeMemgraphRows(parsed);
+      } catch {
+        return [];
+      }
+    }
+
+    return [];
+  };
+
   // Query for each spec and its relationships
   const specIds = specs.map(s => `'${s.id}'`).join(', ');
 
@@ -321,20 +362,20 @@ export async function fetchGraphContextForFindings(
     `;
 
     try {
-      const nodeResult = await callMemgraphMcp(nodeQuery) as Array<{
-        id: string;
-        type: string;
-        props: Record<string, string>;
-      }>;
+      const nodeResult = normalizeMemgraphRows(await callMemgraphMcp(nodeQuery));
 
-      if (Array.isArray(nodeResult)) {
-        for (const row of nodeResult) {
-          nodes.push({
-            id: row.id,
-            type: row.type.toLowerCase() as 'rfc' | 'owasp' | 'section' | 'concept',
-            properties: row.props,
-          });
-        }
+      for (const row of nodeResult) {
+        const id = (row as { id?: string }).id;
+        const type = (row as { type?: string }).type;
+        const props = (row as { props?: Record<string, string> }).props || {};
+
+        if (!id || !type) continue;
+
+        nodes.push({
+          id,
+          type: type.toLowerCase() as 'rfc' | 'owasp' | 'section' | 'concept',
+          properties: props,
+        });
       }
     } catch {
       // Graph may be empty initially
@@ -348,20 +389,20 @@ export async function fetchGraphContextForFindings(
     `;
 
     try {
-      const edgeResult = await callMemgraphMcp(edgeQuery) as Array<{
-        source: string;
-        target: string;
-        relType: string;
-      }>;
+      const edgeResult = normalizeMemgraphRows(await callMemgraphMcp(edgeQuery));
 
-      if (Array.isArray(edgeResult)) {
-        for (const row of edgeResult) {
-          edges.push({
-            source: row.source,
-            target: row.target,
-            type: row.relType,
-          });
-        }
+      for (const row of edgeResult) {
+        const source = (row as { source?: string }).source;
+        const target = (row as { target?: string }).target;
+        const relType = (row as { relType?: string }).relType;
+
+        if (!source || !target || !relType) continue;
+
+        edges.push({
+          source,
+          target,
+          type: relType,
+        });
       }
     } catch {
       // Graph may be empty initially
