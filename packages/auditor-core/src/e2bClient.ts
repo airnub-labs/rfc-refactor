@@ -255,13 +255,10 @@ app.listen(3001, () => {
 `;
 
   // Write the server code to a file and run it with Node.js
-  await sandbox.filesystem.write('/tmp/sample-api.js', sampleApiCode);
+  await sandbox.files.write('/tmp/sample-api.js', sampleApiCode);
 
-  // Start the server in background using process.start
-  const process = await sandbox.process.start({
-    cmd: 'node',
-    args: ['/tmp/sample-api.js'],
-  });
+  // Start the server in background
+  sandbox.commands.run('node /tmp/sample-api.js', { background: true });
 
   // Wait for server to start
   await new Promise(resolve => setTimeout(resolve, 2000));
@@ -292,13 +289,10 @@ export async function runInSandbox<T>(
 
   // Write JS code to file
   const scriptPath = `/tmp/probe-${Date.now()}.js`;
-  await sandbox.filesystem.write(scriptPath, wrappedCode);
+  await sandbox.files.write(scriptPath, wrappedCode);
 
   // Execute with node
-  const result = await sandbox.process.startAndWait({
-    cmd: 'node',
-    args: [scriptPath],
-  });
+  const result = await sandbox.commands.run(`node ${scriptPath}`);
 
   if (result.exitCode !== 0) {
     throw new Error(`Sandbox execution error: ${result.stderr || 'Unknown error'}`);
