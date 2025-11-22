@@ -83,8 +83,16 @@ export {
   configureMcpGateway,
   isMcpGatewayConfigured,
   getMcpGatewayUrl,
-  ensureMcpGatewayConfiguredFromEnv,
 } from './mcpClient.js';
+
+// Sandbox lifecycle
+export {
+  getOrCreateActiveSandbox,
+  ensureSampleApiRunning,
+  hasActiveSandbox,
+  getActiveSandboxId,
+  resetActiveSandbox,
+} from './sandboxManager.js';
 
 // Graph Context
 export {

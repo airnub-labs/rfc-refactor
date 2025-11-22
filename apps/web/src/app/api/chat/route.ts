@@ -7,8 +7,7 @@ import {
   callMemgraphMcp,
   getMemgraphSchema,
   extractAndUpsertSpecsFromText,
-  ensureMcpGatewayConfiguredFromEnv,
-  isMcpGatewayConfigured,
+  hasActiveSandbox,
   type ComplianceReport,
   type GraphContext,
 } from '@e2b-auditor/core';
@@ -55,9 +54,8 @@ export async function POST(request: Request) {
       return new Response('No messages provided', { status: 400 });
     }
 
-    // Ensure MCP gateway is configured before any graph operations triggered by chat
-    ensureMcpGatewayConfiguredFromEnv();
-    const hasMcpGateway = isMcpGatewayConfigured();
+    // MCP gateway is configured when an audit has run and the sandbox is still alive
+    const hasMcpGateway = hasActiveSandbox();
 
     // Get the last user message
     const lastMessage = messages[messages.length - 1];
@@ -115,7 +113,7 @@ export async function POST(request: Request) {
 
     if (isGraphView || isGraphQuery) {
       if (!hasMcpGateway) {
-        const message = 'Knowledge graph is unavailable because the MCP gateway is not configured. Set MCP_GATEWAY_URL and MCP_GATEWAY_TOKEN in your environment.';
+        const message = 'Knowledge graph is unavailable because the MCP gateway has not been initialized. Run an audit to start the sandbox and populate the graph.';
         const encoder = new TextEncoder();
         const stream = new ReadableStream({
           start(controller) {
@@ -230,7 +228,12 @@ export async function POST(request: Request) {
         });
       } catch (error) {
         console.error('[API] Graph query error:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        let errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+        if (errorMessage.toLowerCase().includes('sandbox')) {
+          errorMessage = 'Knowledge graph sandbox is unavailable or expired. Run a new audit to rehydrate Memgraph.';
+        }
+
         return new Response(`Error querying graph: ${errorMessage}`, { status: 500 });
       }
     }
