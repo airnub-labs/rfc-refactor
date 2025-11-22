@@ -42,6 +42,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 60s
 
   # Memgraph MCP Server - built from official ai-toolkit repo
   # https://github.com/memgraph/ai-toolkit/tree/main/integrations/mcp-memgraph
