@@ -89,13 +89,15 @@ export async function POST(request: Request) {
       }
     }
 
-    // Check if user wants to query the knowledge graph
-    const graphQueryKeywords = ['query graph', 'show graph', 'what rfcs', 'which rfcs', 'list rfcs', 'graph schema', 'show schema', 'cypher'];
+    // Check if user wants to view the knowledge graph
+    const graphViewKeywords = ['show graph', 'view graph', 'display graph', 'see graph'];
+    const graphQueryKeywords = ['query graph', 'what rfcs', 'which rfcs', 'list rfcs', 'graph schema', 'show schema', 'cypher'];
     const lastContent = lastMessage.content.toLowerCase();
+    const isGraphView = graphViewKeywords.some(kw => lastContent.includes(kw));
     const isGraphQuery = graphQueryKeywords.some(kw => lastContent.includes(kw));
 
-    if (isGraphQuery) {
-      console.log('[API] Detected graph query request');
+    if (isGraphView || isGraphQuery) {
+      console.log('[API] Detected graph request');
 
       try {
         let graphResult;
@@ -103,15 +105,85 @@ export async function POST(request: Request) {
         if (lastContent.includes('schema')) {
           graphResult = await getMemgraphSchema();
         } else {
-          // Default query to get all RFCs and their relationships
+          // Default query to get all nodes and relationships
           const cypherQuery = lastContent.includes('cypher:')
             ? lastContent.split('cypher:')[1].trim()
-            : 'MATCH (n)-[r]->(m) RETURN n, r, m LIMIT 50';
+            : 'MATCH (n) OPTIONAL MATCH (n)-[r]->(m) RETURN n, r, m';
 
           graphResult = await callMemgraphMcp(cypherQuery);
         }
 
-        // Format results for display
+        // For graph view requests, format as inline graph data
+        if (isGraphView) {
+          // Parse result into nodes and links for force-graph
+          const nodes = new Map<string, { id: string; label: string; type: string; properties: Record<string, unknown> }>();
+          const links: { source: string; target: string; type: string }[] = [];
+
+          if (Array.isArray(graphResult)) {
+            for (const record of graphResult) {
+              // Handle node 'n'
+              if (record.n) {
+                const node = record.n;
+                const id = node.id || node.properties?.id || `node-${nodes.size}`;
+                if (!nodes.has(id)) {
+                  nodes.set(id, {
+                    id,
+                    label: node.properties?.title || node.properties?.name || node.labels?.[0] || id,
+                    type: node.labels?.[0] || 'unknown',
+                    properties: node.properties || {},
+                  });
+                }
+              }
+
+              // Handle node 'm' (target)
+              if (record.m) {
+                const node = record.m;
+                const id = node.id || node.properties?.id || `node-${nodes.size}`;
+                if (!nodes.has(id)) {
+                  nodes.set(id, {
+                    id,
+                    label: node.properties?.title || node.properties?.name || node.labels?.[0] || id,
+                    type: node.labels?.[0] || 'unknown',
+                    properties: node.properties || {},
+                  });
+                }
+              }
+
+              // Handle relationship 'r'
+              if (record.r && record.n && record.m) {
+                const sourceId = record.n.id || record.n.properties?.id;
+                const targetId = record.m.id || record.m.properties?.id;
+                if (sourceId && targetId) {
+                  links.push({
+                    source: sourceId,
+                    target: targetId,
+                    type: record.r.type || 'RELATED_TO',
+                  });
+                }
+              }
+            }
+          }
+
+          const graphData = {
+            nodes: Array.from(nodes.values()),
+            links,
+          };
+
+          const graphResponseText = `Here's the current knowledge graph (${graphData.nodes.length} nodes, ${graphData.links.length} relationships):<!--GRAPH:${JSON.stringify(graphData)}:GRAPH-->`;
+
+          const encoder = new TextEncoder();
+          const stream = new ReadableStream({
+            start(controller) {
+              controller.enqueue(encoder.encode(`0:${JSON.stringify(graphResponseText)}\n`));
+              controller.close();
+            },
+          });
+          return new Response(stream, {
+            headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+          });
+        }
+
+        // For query requests, return JSON
         const resultSummary = JSON.stringify(graphResult, null, 2);
         const graphResponseText = `Here are the results from the knowledge graph:\n\n\`\`\`json\n${resultSummary}\n\`\`\``;
 
