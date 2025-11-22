@@ -7,6 +7,7 @@ import {
   callMemgraphMcp,
   getMemgraphSchema,
   extractAndUpsertSpecsFromText,
+  ensureMcpGatewayConfiguredFromEnv,
   type ComplianceReport,
   type GraphContext,
 } from '@e2b-auditor/core';
@@ -52,6 +53,9 @@ export async function POST(request: Request) {
     if (!messages || messages.length === 0) {
       return new Response('No messages provided', { status: 400 });
     }
+
+    // Ensure MCP gateway is configured before any graph operations triggered by chat
+    const hasMcpGateway = ensureMcpGatewayConfiguredFromEnv();
 
     // Get the last user message
     const lastMessage = messages[messages.length - 1];
@@ -108,6 +112,20 @@ export async function POST(request: Request) {
     const isGraphQuery = graphQueryKeywords.some(kw => lastContent.includes(kw));
 
     if (isGraphView || isGraphQuery) {
+      if (!hasMcpGateway) {
+        const message = 'Knowledge graph is unavailable because the MCP gateway is not configured. Set MCP_GATEWAY_URL and MCP_GATEWAY_TOKEN in your environment.';
+        const encoder = new TextEncoder();
+        const stream = new ReadableStream({
+          start(controller) {
+            controller.enqueue(encoder.encode(`0:${JSON.stringify(message)}\n`));
+            controller.close();
+          },
+        });
+        return new Response(stream, {
+          headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+        });
+      }
+
       console.log('[API] Detected graph request');
 
       try {
