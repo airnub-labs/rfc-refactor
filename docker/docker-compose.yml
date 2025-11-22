@@ -1,3 +1,5 @@
+name: rfc-refactor
+
 services:
   # Main application service
   app:
