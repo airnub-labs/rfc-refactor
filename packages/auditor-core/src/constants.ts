@@ -14,7 +14,7 @@ export const AUDIT_TRIGGER = '__RUN_SAMPLE_AUDIT__';
 /**
  * Default Groq model for compliance analysis
  */
-export const DEFAULT_GROQ_MODEL = 'llama-3.1-70b-versatile';
+export const DEFAULT_GROQ_MODEL = 'llama-3.3-70b-versatile';
 
 /**
  * Default temperature for LLM calls (lower = more deterministic)
