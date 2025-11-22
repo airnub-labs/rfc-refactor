@@ -15,8 +15,12 @@ let mcpGatewayToken = '';
  * Configure MCP client with gateway credentials from E2B sandbox
  */
 export function configureMcpGateway(url: string, token: string): void {
-  mcpGatewayUrl = url;
-  mcpGatewayToken = token;
+  // Avoid reconfiguring if the gateway is already initialized with the same values
+  if (mcpGatewayUrl === url && mcpGatewayToken === token) {
+    return;
+  }
+
+  persistMcpGatewayConfig(url, token);
   console.log('[MCP] Gateway configured - Perplexity and Memgraph tools available');
 }
 
