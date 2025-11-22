@@ -23,6 +23,9 @@ importers:
       '@e2b-auditor/core':
         specifier: workspace:*
         version: link:../../packages/auditor-core
+      '@e2b/code-interpreter':
+        specifier: ^2.2.0
+        version: 2.2.0
       ai:
         specifier: ^3.0.0
         version: 3.4.33(react@19.2.0)(svelte@5.43.14)(vue@3.5.24)(zod@3.25.76)
