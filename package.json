@@ -4,8 +4,7 @@
   "private": true,
   "workspaces": [
     "apps/*",
-    "packages/*",
-    "docker/*"
+    "packages/*"
   ],
   "scripts": {
     "dev": "pnpm -r --parallel dev",
