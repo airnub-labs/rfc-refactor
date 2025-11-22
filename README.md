@@ -136,21 +136,27 @@ Each audit finding links to the exact lines in the codebase:
 
 2. Click **Code** → **Codespaces** → **Create codespace on main**
 
-3. Wait for the container to build (~2-3 minutes)
+3. Wait for the container to build (~2-3 minutes). Docker Compose starts Memgraph + Memgraph MCP for you.
 
-4. The app starts automatically at port 3000
+4. The web app auto-starts on port 3000 via the devcontainer `postStartCommand` (`pnpm dev` from `apps/web`), so the browser preview just works.
 
-### Option 2: Local Docker
+### Option 2: Local dev (Docker only for Memgraph)
 
 ```bash
 git clone https://github.com/airnub-labs/rfc-refactor
 cd rfc-refactor
 cp .env.example .env.local
-# Edit .env.local with your API keys
-docker compose -f docker/docker-compose.yml up
+# Edit .env.local with your API keys (Next.js reads this automatically)
+
+# Start graph deps only
+docker compose -f docker/docker-compose.yml up memgraph memgraph-mcp
+
+# In another terminal, start the app directly (best DX)
+pnpm install
+pnpm --filter web dev
 ```
 
-Open http://localhost:3000
+Open http://localhost:3000. Docker Compose does **not** read `.env.local`, so there's no need to copy it to `.env`; the app reads `.env.local` when you run `pnpm dev`.
 
 ---
 
