@@ -136,7 +136,7 @@ Each audit finding links to the exact lines in the codebase:
 
 2. Click **Code** → **Codespaces** → **Create codespace on main**
 
-3. Wait for the container to build (~2-3 minutes). Docker Compose starts Memgraph + Memgraph MCP for you.
+3. Wait for the container to build (~2-3 minutes). Docker Compose starts **only** Memgraph + Memgraph MCP inside the Codespace; the web app runs directly in the devcontainer (not as a Docker service).
 
 4. The web app auto-starts on port 3000 via the devcontainer `postStartCommand` (`pnpm dev` from `apps/web`), so the browser preview just works.
 
