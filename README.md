@@ -9,7 +9,7 @@ It demonstrates how to:
 - Run an HTTP API **inside an E2B sandbox**.
 - Probe it from within the sandbox and capture real HTTP traffic.
 - **Sanitize** all data that leaves the sandbox (no raw secrets or PII leak).
-- Use **MCP tools** (Perplexity MCP + Memgraph MCP via Docker MCP Gateway) to discover and store relevant **RFCs & OWASP Top 10** entries.
+- Use **MCP tools** (Perplexity MCP via E2B's Docker Hub MCP + Memgraph MCP) to discover and store relevant **RFCs & OWASP Top 10** entries.
 - Use **Groq** to analyse compliance and suggest fixes.
 - Grow a **Memgraph knowledge graph** of standards over time (GraphRAG‑lite).
 - Interact with everything through a **single chat interface**.
@@ -93,8 +93,8 @@ packages/auditor-core
    - auditEngine: orchestrates full audit -> ComplianceReport
    |
    v
-Docker MCP Toolkit / Gateway
-   - Perplexity MCP (live RFC/OWASP discovery)
+E2B Built-in MCP Gateway
+   - Perplexity MCP (via Docker Hub MCP - live RFC/OWASP discovery)
    - Memgraph MCP (Cypher access to Memgraph)
    |
    v
@@ -177,7 +177,7 @@ Additional docs in the repo:
 ### 6.1 Prerequisites
 
 - **Docker** and **Docker Compose**.
-- **Node.js 20+** and **pnpm** or **npm**.
+- **Node.js 20+** and **pnpm**.
 - Access to:
   - A **Groq API key**.
   - A **Perplexity MCP** container / credentials (via Docker MCP Toolkit).
@@ -198,7 +198,7 @@ This repo includes a `.devcontainer/devcontainer.json` that wires everything tog
 4. In the `app` service, run:
    ```bash
    pnpm install
-   pnpm dev --filter apps/web
+   pnpm dev:web
    ```
 5. Open the forwarded port (default: `http://localhost:3000`).
 6. You should now see the chat UI.
@@ -216,11 +216,11 @@ This repo includes a `.devcontainer/devcontainer.json` that wires everything tog
    ```
 3. Install dependencies:
    ```bash
-   pnpm install   # or npm install
+   pnpm install
    ```
 4. Start the Next.js app:
    ```bash
-   pnpm dev --filter apps/web
+   pnpm dev:web
    ```
 5. Open `http://localhost:3000` in your browser.
 
