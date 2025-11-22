@@ -6,6 +6,7 @@ import {
   AUDIT_TRIGGER,
   callMemgraphMcp,
   getMemgraphSchema,
+  extractAndUpsertSpecsFromText,
   type ComplianceReport,
   type GraphContext,
 } from '@e2b-auditor/core';
@@ -220,6 +221,14 @@ export async function POST(request: Request) {
       messages,
       temperature: 0.3,
       maxTokens: 2048,
+      onFinish: async ({ text }) => {
+        // Extract specs from assistant response to populate graph
+        try {
+          await extractAndUpsertSpecsFromText(text);
+        } catch (err) {
+          console.log('[API] Graph population from response failed:', err);
+        }
+      },
     });
 
     // Return the stream response
