@@ -67,14 +67,19 @@ export default function Home() {
   });
   const [report, setReport] = useState<Report | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const prevMessageCountRef = useRef(0);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // Only scroll when a new message is added, not during streaming updates
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (messages.length > prevMessageCountRef.current) {
+      scrollToBottom();
+    }
+    prevMessageCountRef.current = messages.length;
+  }, [messages.length]);
 
   // Check for report data in the last assistant message
   useEffect(() => {

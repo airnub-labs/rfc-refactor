@@ -18,7 +18,8 @@
   },
   "dependencies": {
     "@e2b/code-interpreter": "^2.2.0",
-    "@redactpii/node": "^1.0.0"
+    "@redactpii/node": "^1.0.0",
+    "eventsource-parser": "^3.0.6"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
