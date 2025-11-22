@@ -27,9 +27,9 @@ export const DEFAULT_LLM_TEMPERATURE = 0.3;
 export const DEFAULT_MAX_TOKENS = 4096;
 
 /**
- * Default E2B sandbox timeout in milliseconds (5 minutes)
+ * Default E2B sandbox timeout in milliseconds (30 minutes)
  */
-export const DEFAULT_SANDBOX_TIMEOUT_MS = 300000;
+export const DEFAULT_SANDBOX_TIMEOUT_MS = 30 * 60 * 1000;
 
 /**
  * Maximum length for body previews in sanitized exchanges

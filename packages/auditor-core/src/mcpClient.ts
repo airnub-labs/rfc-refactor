@@ -7,26 +7,9 @@ import type { MCPCallParams, MCPCallResponse } from './types.js';
 import { applyAspects, type Aspect } from './aspects/applyAspects.js';
 import { sanitizeObjectForEgress } from './aspects/egressGuard.js';
 
-interface McpGatewayConfig {
-  url: string;
-  token: string;
-}
-
-// Persist gateway configuration globally so it can be reused across route handlers
-// and hot reloads without re-reading environment variables or reconfiguring.
-const globalWithMcp = globalThis as typeof globalThis & {
-  __e2bMcpGatewayConfig?: McpGatewayConfig;
-};
-
-// MCP Gateway configuration - must be set via configureMcpGateway() from E2B sandbox
-let mcpGatewayUrl = globalWithMcp.__e2bMcpGatewayConfig?.url || '';
-let mcpGatewayToken = globalWithMcp.__e2bMcpGatewayConfig?.token || '';
-
-function persistMcpGatewayConfig(url: string, token: string): void {
-  mcpGatewayUrl = url;
-  mcpGatewayToken = token;
-  globalWithMcp.__e2bMcpGatewayConfig = { url, token };
-}
+// MCP Gateway configuration - set once from the active sandbox
+let mcpGatewayUrl = '';
+let mcpGatewayToken = '';
 
 /**
  * Configure MCP client with gateway credentials from E2B sandbox
@@ -46,37 +29,6 @@ export function configureMcpGateway(url: string, token: string): void {
  */
 export function isMcpGatewayConfigured(): boolean {
   return Boolean(mcpGatewayUrl);
-}
-
-/**
- * Ensure MCP gateway credentials are configured, preferring runtime values
- * and falling back to environment variables used across both server and
- * Next.js runtimes.
- */
-export function ensureMcpGatewayConfiguredFromEnv(): boolean {
-  if (isMcpGatewayConfigured()) {
-    return true;
-  }
-
-  const envUrl =
-    process.env.MCP_GATEWAY_URL ||
-    process.env.E2B_MCP_GATEWAY_URL ||
-    process.env.NEXT_PUBLIC_MCP_GATEWAY_URL ||
-    '';
-
-  const envToken =
-    process.env.MCP_GATEWAY_TOKEN ||
-    process.env.E2B_MCP_GATEWAY_TOKEN ||
-    process.env.NEXT_PUBLIC_MCP_GATEWAY_TOKEN ||
-    '';
-
-  if (envUrl) {
-    console.log('[MCP] Configuring gateway from environment variables...');
-    persistMcpGatewayConfig(envUrl, envToken);
-    return true;
-  }
-
-  return false;
 }
 
 /**
@@ -227,7 +179,7 @@ export const mcpCall = applyAspects(baseMcpCall, [
  */
 export async function callPerplexityMcp(query: string): Promise<string> {
   if (!mcpGatewayUrl) {
-    throw new Error('MCP gateway not configured. Call configureMcpGateway() with E2B sandbox credentials first.');
+    throw new Error('MCP gateway not configured. Run an audit to initialize the E2B sandbox.');
   }
 
   const response = await mcpCall({
@@ -247,7 +199,7 @@ export async function callPerplexityMcp(query: string): Promise<string> {
  */
 export async function callMemgraphMcp(cypherQuery: string): Promise<unknown> {
   if (!mcpGatewayUrl) {
-    throw new Error('MCP gateway not configured. Call configureMcpGateway() with E2B sandbox credentials first.');
+    throw new Error('MCP gateway not configured. Run an audit to initialize the E2B sandbox.');
   }
 
   const response = await mcpCall({
@@ -267,7 +219,7 @@ export async function callMemgraphMcp(cypherQuery: string): Promise<unknown> {
  */
 export async function getMemgraphSchema(): Promise<unknown> {
   if (!mcpGatewayUrl) {
-    throw new Error('MCP gateway not configured. Call configureMcpGateway() with E2B sandbox credentials first.');
+    throw new Error('MCP gateway not configured. Run an audit to initialize the E2B sandbox.');
   }
 
   const response = await mcpCall({

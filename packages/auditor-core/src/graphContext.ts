@@ -16,7 +16,7 @@ import type {
 import {
   callPerplexityMcp,
   callMemgraphMcp,
-  ensureMcpGatewayConfiguredFromEnv,
+  isMcpGatewayConfigured,
 } from './mcpClient.js';
 import {
   getOwaspCategories,
@@ -188,7 +188,7 @@ function isValidSpecId(id: string): boolean {
  * Upsert specs into Memgraph
  */
 async function upsertSpecsToMemgraph(specs: EnrichedSpec[]): Promise<void> {
-  if (!ensureMcpGatewayConfiguredFromEnv()) {
+  if (!isMcpGatewayConfigured()) {
     console.warn(
       '[Graph] MCP gateway not configured; skipping Memgraph operations.'
     );
@@ -303,7 +303,7 @@ export async function fetchGraphContextForFindings(
   const nodes: GraphContext['nodes'] = [];
   const edges: GraphContext['edges'] = [];
 
-  if (!ensureMcpGatewayConfiguredFromEnv()) {
+  if (!isMcpGatewayConfigured()) {
     console.warn(
       '[Graph] MCP gateway not configured; skipping Memgraph operations.'
     );

@@ -1,16 +1,9 @@
-import {
-  callMemgraphMcp,
-  ensureMcpGatewayConfiguredFromEnv,
-  getMcpGatewayUrl,
-} from '@e2b-auditor/core';
+import { callMemgraphMcp, getMcpGatewayUrl, hasActiveSandbox } from '@e2b-auditor/core';
 
 export async function GET() {
   try {
-    // Attempt to configure MCP gateway from environment for chat-driven graph updates
-    ensureMcpGatewayConfiguredFromEnv();
-
     // Check if MCP gateway is configured (only available after running an audit)
-    if (!getMcpGatewayUrl()) {
+    if (!hasActiveSandbox() || !getMcpGatewayUrl()) {
       // Return empty graph - this is normal before first audit
       return Response.json({
         nodes: [],
@@ -81,7 +74,12 @@ export async function GET() {
     });
   } catch (error) {
     console.error('[API] Graph fetch error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    let errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+    if (errorMessage.toLowerCase().includes('sandbox')) {
+      errorMessage = 'Knowledge graph sandbox is unavailable or expired. Run a new audit to rehydrate Memgraph.';
+    }
+
     return Response.json({ error: errorMessage, nodes: [], links: [] }, { status: 500 });
   }
 }
