@@ -4,9 +4,9 @@
 
 ---
 
-## For Hackathon Judges
+## Overview
 
-### The Problem We Solve
+### The Problem
 
 Building an API security auditor typically requires:
 - **Hardcoding security rules** that quickly become outdated
@@ -25,7 +25,7 @@ Building an API security auditor typically requires:
 
 **Result:** Our entire codebase focuses on the audit logic, not infrastructure.
 
-### Verify It's Real (Not Faked)
+### Verifiable Results
 
 Every audit finding includes a **"View Source"** link that takes you directly to the vulnerable code in GitHub:
 
@@ -33,7 +33,7 @@ Every audit finding includes a **"View Source"** link that takes you directly to
 /user-leaky → View Source → e2bClient.ts#L171-L186
 ```
 
-Click any finding to see the actual code being audited. This proves the LLM is analyzing real endpoints, not hallucinating issues.
+Click any finding to see the actual code being audited, proving the analysis is grounded in real endpoints.
 
 ---
 
@@ -162,7 +162,7 @@ Open http://localhost:3000. Docker Compose does **not** read `.env.local`, so th
 
 ---
 
-## Demo Flow for Judges
+## Demo Walkthrough
 
 ### 1. Run an Audit (2 minutes)
 
