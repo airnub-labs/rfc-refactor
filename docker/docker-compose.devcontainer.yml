@@ -1,0 +1,27 @@
+services:
+  # Workspace/container used by Codespaces/devcontainer.
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.app
+    ports:
+      - "3000:3000"
+    volumes:
+      - ..:/workspace:cached
+      - node_modules:/workspace/node_modules
+      - app_node_modules:/workspace/apps/web/node_modules
+      - core_node_modules:/workspace/packages/auditor-core/node_modules
+      - sample_node_modules:/workspace/packages/sample-api/node_modules
+    environment:
+      - NODE_ENV=development
+    depends_on:
+      - memgraph
+    # The app itself is started via pnpm dev from apps/web (see README and devcontainer postStart).
+    # Keep the container alive so Codespaces can attach and run the web app directly.
+    command: sleep infinity
+
+volumes:
+  node_modules:
+  app_node_modules:
+  core_node_modules:
+  sample_node_modules:

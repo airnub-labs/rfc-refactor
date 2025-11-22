@@ -1,38 +1,6 @@
 name: rfc-refactor
 
 services:
-  # Main application service
-  app:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile.app
-    ports:
-      - "3000:3000"
-    volumes:
-      - ..:/workspace:cached
-      - node_modules:/workspace/node_modules
-      - app_node_modules:/workspace/apps/web/node_modules
-      - core_node_modules:/workspace/packages/auditor-core/node_modules
-      - sample_node_modules:/workspace/packages/sample-api/node_modules
-    environment:
-      - NODE_ENV=development
-      # API Keys - set these as Codespaces secrets or in .env.local
-      - E2B_API_KEY=${E2B_API_KEY:-}
-      - GROQ_API_KEY=${GROQ_API_KEY:-}
-      - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY:-}
-      # Groq defaults
-      - GROQ_API_URL=https://api.groq.com/openai/v1/chat/completions
-      - GROQ_MODEL=compound-beta
-      # Memgraph defaults (matches docker-compose service)
-      - MEMGRAPH_HOST=memgraph
-      - MEMGRAPH_PORT=7687
-      - MEMGRAPH_USER=memgraph
-      - MEMGRAPH_PASSWORD=memgraph
-      - MCP_READ_ONLY=false
-    depends_on:
-      - memgraph
-    command: pnpm dev
-
   # Memgraph database with schema info enabled (required for MCP)
   memgraph:
     image: memgraph/memgraph-mage:latest
@@ -71,7 +39,3 @@ services:
 volumes:
   memgraph_data:
   memgraph_log:
-  node_modules:
-  app_node_modules:
-  core_node_modules:
-  sample_node_modules:

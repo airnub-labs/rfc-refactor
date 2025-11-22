@@ -1,6 +1,9 @@
 {
   "name": "E2B RFC/OWASP Auditor",
-  "dockerComposeFile": "../docker/docker-compose.yml",
+  "dockerComposeFile": [
+    "../docker/docker-compose.yml",
+    "../docker/docker-compose.devcontainer.yml"
+  ],
   "service": "app",
   "workspaceFolder": "/workspace",
   "shutdownAction": "stopCompose",
@@ -36,7 +39,7 @@
     }
   },
   "postCreateCommand": "pnpm install",
-  "postStartCommand": "pnpm dev",
+  "postStartCommand": "cd apps/web && pnpm dev -- --hostname 0.0.0.0 --port 3000",
   "remoteEnv": {
     "NODE_ENV": "development",
     "E2B_API_KEY": "${localEnv:E2B_API_KEY}",
