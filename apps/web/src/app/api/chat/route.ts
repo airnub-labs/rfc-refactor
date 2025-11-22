@@ -55,7 +55,7 @@ export async function POST(request: Request) {
     }
 
     // Ensure MCP gateway is configured before any graph operations triggered by chat
-    const hasMcpGateway = ensureMcpGatewayConfiguredFromEnv();
+    ensureMcpGatewayConfiguredFromEnv();
 
     // Get the last user message
     const lastMessage = messages[messages.length - 1];
