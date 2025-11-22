@@ -5,7 +5,11 @@ import {
   reportToSummary,
   AUDIT_TRIGGER,
   type ComplianceReport,
+  type GraphContext,
 } from '@e2b-auditor/core';
+
+// Store last audit's graph context for follow-up questions
+let lastGraphContext: GraphContext | undefined;
 
 // System prompt for the RFC/OWASP auditor
 const SYSTEM_PROMPT = `You are an expert RFC and OWASP Top 10 compliance auditor for HTTP APIs.
@@ -47,6 +51,9 @@ export async function POST(request: Request) {
         // Run the audit
         const report: ComplianceReport = await runAuditOnSampleApi();
 
+        // Store graph context for follow-up questions
+        lastGraphContext = report.graphContext;
+
         // Convert to chat summary
         const summary = reportToSummary(report);
 
@@ -71,10 +78,19 @@ export async function POST(request: Request) {
       }
     }
 
+    // Build system prompt with graph context if available
+    let systemPrompt = SYSTEM_PROMPT;
+    if (lastGraphContext && (lastGraphContext.nodes.length > 0 || lastGraphContext.edges.length > 0)) {
+      const graphSummary = lastGraphContext.nodes
+        .map(n => `- ${n.type.toUpperCase()}: ${n.id} (${n.properties.title || ''})`)
+        .join('\n');
+      systemPrompt += `\n\nRelevant standards from the last audit (use these to inform your answers):\n${graphSummary}`;
+    }
+
     // For normal chat, use AI SDK with Groq for streaming
     const result = await streamText({
       model: groq('llama-3.1-70b-versatile'),
-      system: SYSTEM_PROMPT,
+      system: systemPrompt,
       messages,
       temperature: 0.3,
       maxTokens: 2048,
