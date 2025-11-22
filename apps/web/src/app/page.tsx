@@ -1,13 +1,34 @@
 'use client';
 
 import { useChat } from 'ai/react';
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
+import dynamic from 'next/dynamic';
+
+// Dynamically import ForceGraph2D to avoid SSR issues
+const ForceGraph2D = dynamic(() => import('react-force-graph-2d'), {
+  ssr: false,
+  loading: () => <div className="flex items-center justify-center h-48 bg-gray-800 rounded">Loading graph...</div>,
+});
 
 interface GraphNode {
   id: string;
   type: string;
   properties: Record<string, string>;
 }
+
+interface InlineGraphData {
+  nodes: Array<{ id: string; label: string; type: string; properties: Record<string, unknown> }>;
+  links: Array<{ source: string; target: string; type: string }>;
+}
+
+// Color map for different node types
+const nodeColors: Record<string, string> = {
+  RFC: '#3b82f6',
+  OWASP: '#ef4444',
+  Endpoint: '#10b981',
+  Finding: '#f59e0b',
+  unknown: '#6b7280',
+};
 
 interface GraphEdge {
   source: string;
@@ -104,12 +125,55 @@ export default function Home() {
     return colors[severity] || 'bg-gray-900 text-gray-300';
   };
 
-  // Clean message content by removing audit trigger and report data
+  // Clean message content by removing audit trigger, report data, and graph data
   const cleanContent = (content: string) => {
     return content
       .replace(AUDIT_TRIGGER, '')
       .replace(/<!--REPORT:.*?:REPORT-->/s, '')
+      .replace(/<!--GRAPH:.*?:GRAPH-->/s, '')
       .trim();
+  };
+
+  // Extract inline graph data from message
+  const extractGraphData = (content: string): InlineGraphData | null => {
+    try {
+      const match = content.match(/<!--GRAPH:([\s\S]*?):GRAPH-->/);
+      if (match) {
+        return JSON.parse(match[1]);
+      }
+    } catch {
+      // No valid graph data
+    }
+    return null;
+  };
+
+  // Inline Graph Viewer Component
+  const InlineGraphViewer = ({ data }: { data: InlineGraphData }) => {
+    if (data.nodes.length === 0) {
+      return (
+        <div className="h-48 bg-gray-800 rounded flex items-center justify-center text-gray-400">
+          Graph is empty. Run an audit to populate it.
+        </div>
+      );
+    }
+
+    return (
+      <div className="h-64 bg-gray-800 rounded overflow-hidden">
+        <ForceGraph2D
+          graphData={data}
+          width={400}
+          height={256}
+          nodeLabel={(node: { label?: string; type?: string }) => `${node.label || ''}\n(${node.type || ''})`}
+          nodeColor={(node: { type?: string }) => nodeColors[node.type || 'unknown'] || nodeColors.unknown}
+          nodeRelSize={5}
+          linkColor={() => '#4b5563'}
+          linkWidth={1}
+          linkDirectionalArrowLength={3}
+          linkDirectionalArrowRelPos={1}
+          backgroundColor="#1f2937"
+        />
+      </div>
+    );
   };
 
   return (
@@ -142,26 +206,38 @@ export default function Home() {
               </div>
             )}
 
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${
-                  message.role === 'user' ? 'justify-end' : 'justify-start'
-                }`}
-              >
+            {messages.map((message) => {
+              const graphData = message.role === 'assistant' ? extractGraphData(message.content) : null;
+              const cleanedContent = cleanContent(message.content);
+
+              return (
                 <div
-                  className={`max-w-[80%] rounded-lg p-3 ${
-                    message.role === 'user'
-                      ? 'bg-blue-600'
-                      : 'bg-gray-800'
+                  key={message.id}
+                  className={`flex ${
+                    message.role === 'user' ? 'justify-end' : 'justify-start'
                   }`}
                 >
-                  <pre className="whitespace-pre-wrap font-sans text-sm">
-                    {cleanContent(message.content)}
-                  </pre>
+                  <div
+                    className={`max-w-[80%] rounded-lg p-3 ${
+                      message.role === 'user'
+                        ? 'bg-blue-600'
+                        : 'bg-gray-800'
+                    }`}
+                  >
+                    {cleanedContent && (
+                      <pre className="whitespace-pre-wrap font-sans text-sm">
+                        {cleanedContent}
+                      </pre>
+                    )}
+                    {graphData && (
+                      <div className={cleanedContent ? 'mt-3' : ''}>
+                        <InlineGraphViewer data={graphData} />
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
 
             {isLoading && (
               <div className="flex justify-start">
