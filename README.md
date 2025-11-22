@@ -226,7 +226,28 @@ This repo includes a `.devcontainer/devcontainer.json` that wires everything tog
    ```
 5. Open `http://localhost:3000` in your browser.
 
-> **Note:** you must provide valid environment variables (e.g. `GROQ_API_KEY`, `PERPLEXITY_API_KEY`, MCP gateway URLs) as described in `.env.example` / app config. Exact variable names can be adjusted in code but should be clearly documented for the final submission.
+> **Note:** you must provide valid environment variables as described below.
+
+### 6.4 Required Environment Variables
+
+Create a `.env` file in the project root with the following variables:
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `E2B_API_KEY` | **Yes** | API key for E2B sandbox execution |
+| `GROQ_API_KEY` | **Yes** | API key for Groq LLM calls |
+| `PERPLEXITY_API_KEY` | **Yes** | API key for Perplexity MCP spec discovery |
+| `MEMGRAPH_HOST` | No | Memgraph hostname (default: `localhost`) |
+| `MEMGRAPH_PORT` | No | Memgraph port (default: `7687`) |
+| `MCP_GATEWAY_URL` | No | MCP Gateway URL (default: `http://localhost:8080`) |
+
+**Important**: If these variables are not set, the system will fail:
+- Missing `GROQ_API_KEY` → LLM calls will error
+- Missing `E2B_API_KEY` → Sandbox creation will fail
+- Missing `PERPLEXITY_API_KEY` → Spec discovery will not work
+- Missing `MEMGRAPH_HOST` → Graph queries will fail silently
+
+See `.env.example` for a template.
 
 ---
 

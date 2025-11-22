@@ -3,6 +3,18 @@
 import { useChat } from 'ai/react';
 import { useRef, useEffect, useState } from 'react';
 
+interface GraphNode {
+  id: string;
+  type: string;
+  properties: Record<string, string>;
+}
+
+interface GraphEdge {
+  source: string;
+  target: string;
+  type: string;
+}
+
 interface Report {
   summary: string;
   overallHealth: string;
@@ -20,6 +32,10 @@ interface Report {
   }>;
   rfcsCited: string[];
   owaspCited: string[];
+  graphContext?: {
+    nodes: GraphNode[];
+    edges: GraphEdge[];
+  };
 }
 
 const AUDIT_TRIGGER = '__RUN_SAMPLE_AUDIT__';
@@ -245,6 +261,38 @@ export default function Home() {
                   <p className="text-xs text-gray-400">
                     OWASP: {report.owaspCited.join(', ')}
                   </p>
+                )}
+              </div>
+            )}
+
+            {/* Graph Context Visualization */}
+            {report.graphContext && report.graphContext.nodes.length > 0 && (
+              <div className="mt-4 p-3 bg-gray-800 rounded-lg">
+                <h3 className="text-sm font-bold mb-2">Knowledge Graph</h3>
+                <div className="space-y-2">
+                  {report.graphContext.nodes.map((node, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <span className={`text-xs px-1.5 py-0.5 rounded ${
+                        node.type === 'rfc' ? 'bg-blue-900 text-blue-300' : 'bg-purple-900 text-purple-300'
+                      }`}>
+                        {node.type.toUpperCase()}
+                      </span>
+                      <span className="text-xs text-gray-300">{node.id}</span>
+                      {node.properties.title && (
+                        <span className="text-xs text-gray-500 truncate">{node.properties.title}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {report.graphContext.edges.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-gray-700">
+                    <p className="text-xs text-gray-500 mb-1">Relationships:</p>
+                    {report.graphContext.edges.map((edge, idx) => (
+                      <p key={idx} className="text-xs text-gray-400">
+                        {edge.source} → {edge.type} → {edge.target}
+                      </p>
+                    ))}
+                  </div>
                 )}
               </div>
             )}

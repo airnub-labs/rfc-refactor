@@ -72,6 +72,13 @@ const SENSITIVE_PATTERNS = [
   { pattern: /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g, replacement: '[IP_ADDRESS]' },
   // Passwords in common contexts
   { pattern: /password['":\s]*[^\s,}"']+/gi, replacement: 'password: [REDACTED]' },
+  // Database URLs with credentials
+  { pattern: /(?:postgres|mysql|mongodb|redis):\/\/[^:]+:[^@]+@[^\s"']+/gi, replacement: '[DATABASE_URL]' },
+  // Secret keys/tokens (e.g., SECRET_KEY, API_SECRET)
+  { pattern: /(?:SECRET|PRIVATE)[_-]?(?:KEY|TOKEN)?['":\s]*[a-zA-Z0-9_-]{8,}/gi, replacement: '[SECRET_REDACTED]' },
+  // AWS keys
+  { pattern: /AKIA[A-Z0-9]{16}/g, replacement: '[AWS_ACCESS_KEY]' },
+  { pattern: /aws[_-]?secret[_-]?access[_-]?key['":\s]*[^\s,}"']+/gi, replacement: 'aws_secret: [REDACTED]' },
 ];
 
 /**
