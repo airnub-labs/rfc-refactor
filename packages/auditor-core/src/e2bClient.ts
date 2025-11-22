@@ -255,10 +255,13 @@ app.listen(3001, () => {
 `;
 
   // Write the server code to a file and run it with Node.js
-  await sandbox.files.write('/tmp/sample-api.js', sampleApiCode);
+  await sandbox.filesystem.write('/tmp/sample-api.js', sampleApiCode);
 
-  // Start the server in background
-  await sandbox.commands.run('node /tmp/sample-api.js &', { background: true });
+  // Start the server in background using process.start
+  const process = await sandbox.process.start({
+    cmd: 'node',
+    args: ['/tmp/sample-api.js'],
+  });
 
   // Wait for server to start
   await new Promise(resolve => setTimeout(resolve, 2000));
