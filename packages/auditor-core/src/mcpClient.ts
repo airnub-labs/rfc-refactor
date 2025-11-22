@@ -2,6 +2,7 @@
  * MCP Client - communicates with E2B's built-in MCP Gateway for Perplexity and Memgraph tools
  */
 
+import { createParser, type EventSourceMessage } from 'eventsource-parser';
 import type { MCPCallParams, MCPCallResponse } from './types.js';
 import { applyAspects, type Aspect } from './aspects/applyAspects.js';
 import { sanitizeObjectForEgress } from './aspects/egressGuard.js';
@@ -66,30 +67,32 @@ async function baseMcpCall(params: MCPCallParams): Promise<MCPCallResponse> {
 
   const contentType = response.headers.get('content-type') || '';
 
-  // Handle SSE response
+  // Handle SSE response using eventsource-parser
   if (contentType.includes('text/event-stream')) {
     const text = await response.text();
-    // Parse SSE events - look for data: lines
-    const lines = text.split('\n');
     let result: unknown = null;
 
-    for (const line of lines) {
-      if (line.startsWith('data: ')) {
-        try {
-          const data = JSON.parse(line.slice(6));
-          // Look for the result in the SSE data
-          if (data.result !== undefined) {
-            result = data.result;
-          } else if (data.content) {
-            result = data.content;
-          } else {
-            result = data;
+    const parser = createParser({
+      onEvent: (event: EventSourceMessage) => {
+        if (event.data) {
+          try {
+            const data = JSON.parse(event.data);
+            // Look for the result in the SSE data
+            if (data.result !== undefined) {
+              result = data.result;
+            } else if (data.content) {
+              result = data.content;
+            } else {
+              result = data;
+            }
+          } catch {
+            // Skip non-JSON data
           }
-        } catch {
-          // Skip non-JSON lines
         }
-      }
-    }
+      },
+    });
+
+    parser.feed(text);
 
     return { result };
   }
